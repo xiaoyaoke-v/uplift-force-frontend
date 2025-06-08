@@ -20,7 +20,10 @@ export default async function RootLayout(props: { children: ReactNode }) {
 
   return (
 <html lang="en">
-      <body className={inter.className}>
+      <head>
+        <link rel="icon" href="/favicon.ico" />
+      </head>
+      <body className={inter.className + " min-h-screen flex flex-col"}>
         <Providers >{props.children}</Providers>
       </body>
     </html>
