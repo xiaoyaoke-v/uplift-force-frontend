@@ -10,6 +10,7 @@ import {
   QueryClient,
 } from "@tanstack/react-query";
 import { config } from './wagmi';
+import { App, message } from 'antd';
 
 
 export default function Providers(props: {
@@ -17,12 +18,14 @@ export default function Providers(props: {
 }) {
   const [queryClient] = useState(() => new QueryClient())
   return (
-    <WagmiProvider config={config}>
-      <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider>
-          {props.children}
-        </RainbowKitProvider>
-      </QueryClientProvider>
-    </WagmiProvider>
+    <App>
+      <WagmiProvider config={config}>
+        <QueryClientProvider client={queryClient}>
+          <RainbowKitProvider>
+            {props.children}
+          </RainbowKitProvider>
+        </QueryClientProvider>
+      </WagmiProvider>
+    </App>
   );
 }
