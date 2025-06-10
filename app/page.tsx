@@ -1,39 +1,110 @@
 'use client'
 
-import Header from './components/Header';
+import Header from '@/components/Header';
 import { useAccount, useSignMessage } from "wagmi"
-import { useState } from 'react';
-import { request } from './utils/request';
+import { FC, useEffect, useState } from 'react';
+import { check, login } from '@/apis'
 import { message } from 'antd';
+import { formatCurrentDateTime } from '@/utils/day';
+import { useRouter } from 'next/navigation';
+
+interface IButton {
+  isConnected: boolean
+  isRegister: boolean
+  sign: () => void
+  register: () => void
+}
+
+const NextButton: FC<IButton> = ({isConnected, isRegister, sign, register}) => {
+  if (!isConnected) {
+    return (
+      <div className="inline-block px-8 py-3 rounded-xl bg-gradient-to-r from-red-400 via-pink-500 to-purple-500 text-white font-bold text-lg shadow-lg text-center animate-pulse">
+        Please connect your wallet!
+      </div>
+    );
+  } else if (!isRegister) {
+    return (
+      <button
+        onClick={register}
+        className="inline-block px-8 py-3 rounded-xl bg-gradient-to-r from-green-400 to-blue-500 text-white font-bold text-lg shadow-lg hover:scale-105 hover:shadow-2xl transition"
+      >
+        Register now!
+      </button>
+    );
+  } else {
+    return (
+      <button
+        onClick={sign}
+        className="inline-block px-8 py-3 rounded-xl bg-gradient-to-r from-[#3b82f6] to-[#9333ea] text-white font-bold text-lg shadow-lg hover:scale-105 hover:shadow-2xl transition"
+      >
+        Sign in with wallet!
+      </button>
+    );
+  }
+}
 
 
 export default function Home() {
   
   const [isSigned, setIsSigned] = useState(false)
+  const [isRegister, setIsRegister] = useState(false)
   const [messageContent, setMessageContent] = useState('')
   const { address, isConnected } = useAccount()
   const [messageApi, contextHolder] = message.useMessage()
+  const router = useRouter();
 
   const {signMessageAsync} = useSignMessage()
+
+  // Unified error handler for login-related issues
+  const handleLoginError = (error: any) => {
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred during sign-in or login.';
+    messageApi.error(`Sign-in or login failed: ${errorMessage}`);
+    setIsSigned(false);
+  };
+
+  // Call checkWallet when wallet is connected
+  useEffect(() => {
+    const checkWallet = async () => {
+      if(!address) return
+      try {
+        const { data: { is_registered} } = await check({
+          wallet_address: address!
+        })
+        setIsRegister(is_registered)
+      } catch (error: any) {
+        console.error('Error checking wallet:', error);
+      }
+    }
+  
+    if (isConnected && address) {
+      checkWallet();
+    }
+  }, [isConnected, address]);
 
   const sign = async () => {
     if (!address) {
       messageApi.error('Wallet address is not available.');
       return;
     }
+
+    // 
+
+
+
     try {
-      const msg = `Welcome to uplift force, timestamp is ${Date.now()}!`;
+      const msg = `Welcome to the uplift force at ${formatCurrentDateTime()}, please sign this message to prove you are the owner of the wallet.`;
       const signature = await signMessageAsync({ message: msg });
 
-      const data = await request('/v1/auth/login', {
-        method: "POST",
-        data: {
-          wallet_address: address,
-          message: msg,
-          signature
-        }
-      });
+      const data = {
+        wallet_address: address,
+        message: msg,
+        signature
+      }
 
+      const res = await login(data)
+
+      console.log(res);
+      
       messageApi.open({
         type: 'success',
         content: 'Login successful!',
@@ -42,12 +113,12 @@ export default function Home() {
       setIsSigned(true);
       setMessageContent(msg);
     } catch (error: any) {
-      messageApi.open({
-        type: 'error',
-        content: `Sign-in or login failed: ${error.message}`,
-      });
-      setIsSigned(false);
+      handleLoginError(error);
     }
+  };
+
+  const registerUser = () => {
+    router.push('/register');
   };
 
   return(
@@ -61,18 +132,7 @@ export default function Home() {
           </h1>
           <p className="text-lg md:text-xl text-gray-300 mb-8">
           Connecting players and boosters, becoming the best boosting platform on web3!         </p>
-          {!isConnected ? (
-            <div className="inline-block px-8 py-3 rounded-xl bg-gradient-to-r from-red-400 via-pink-500 to-purple-500 text-white font-bold text-lg shadow-lg text-center animate-pulse">
-              Please connect your wallet!
-            </div>
-          ) : (
-            <button
-              onClick={sign}
-              className="inline-block px-8 py-3 rounded-xl bg-gradient-to-r from-[#3b82f6] to-[#9333ea] text-white font-bold text-lg shadow-lg hover:scale-105 hover:shadow-2xl transition"
-            >
-              Try it now!
-            </button>
-          )}
+          <NextButton isConnected={isConnected} isRegister={isRegister} sign={sign} register={registerUser}></NextButton>
 
         </div>
       </main>
