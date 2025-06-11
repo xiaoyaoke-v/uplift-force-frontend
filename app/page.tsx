@@ -7,49 +7,15 @@ import { check, login } from '@/apis'
 import { formatCurrentDateTime } from '@/utils/day';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/contexts/UserContext';
-
-interface IButton {
-  isConnected: boolean
-  isRegister: boolean
-  sign: () => void
-  register: () => void
-}
-
-const NextButton: FC<IButton> = ({isConnected, isRegister, sign, register}) => {
-  if (!isConnected) {
-    return (
-      <div className="inline-block px-8 py-3 rounded-xl bg-gradient-to-r from-red-400 via-pink-500 to-purple-500 text-white font-bold text-lg shadow-lg text-center animate-pulse">
-        Please connect your wallet!
-      </div>
-    );
-  } else if (!isRegister) {
-    return (
-      <button
-        onClick={register}
-        className="inline-block px-8 py-3 rounded-xl bg-gradient-to-r from-green-400 to-blue-500 text-white font-bold text-lg shadow-lg hover:scale-105 hover:shadow-2xl transition"
-      >
-        Register now!
-      </button>
-    );
-  } else {
-    return (
-      <button
-        onClick={sign}
-        className="inline-block px-8 py-3 rounded-xl bg-gradient-to-r from-[#3b82f6] to-[#9333ea] text-white font-bold text-lg shadow-lg hover:scale-105 hover:shadow-2xl transition"
-      >
-        Sign in with wallet!
-      </button>
-    );
-  }
-}
-
+import { setRefreshToken, setToken } from './utils/token';
+import NextButton from '@/components/NextButton';
 
 export default function Home() {
   
   const [isRegister, setIsRegister] = useState(false)
   const { address, isConnected } = useAccount()
   const router = useRouter();
-  const { setUser } = useUser();
+  const { setUser, user } = useUser();
 
   const {signMessageAsync} = useSignMessage()
 
@@ -72,6 +38,14 @@ export default function Home() {
     }
   }, [isConnected, address]);
 
+  // Logout if wallet is disconnected and user is logged in
+  useEffect(() => {
+    if (!isConnected && user) {
+      setUser(null);
+      router.push('/');
+    }
+  }, [isConnected, user, router, setUser]);
+
   const onLogin = async () => {
     if (!address || !isConnected) {
       return;
@@ -87,11 +61,18 @@ export default function Home() {
         signature
       }
 
-      const userData = await login(loginParams)
+      const loginResponse = await login(loginParams) // Get the full IUserInfo response
 
-      console.log(userData);
+      console.log(loginResponse);
       
-      setUser(userData);
+      setUser(loginResponse.user); // Set the nested user object in global context
+
+      // Redirect based on user role
+      if (loginResponse.user.role === 'player') {
+        router.push('/player');
+      } else if (loginResponse.user.role === 'booster') {
+        router.push('/booster');
+      }
 
     } catch (error: any) {
       console.error("Login failed:", error);

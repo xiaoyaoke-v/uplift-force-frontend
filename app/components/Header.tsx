@@ -11,7 +11,9 @@ export default function Header() {
           <span className="mr-2">🚀</span>Uplift Force
         </span>
       </div>
-      <ConnectButton />
+      <div className="transform transition-all duration-300 hover:scale-[1.05]">
+        <ConnectButton />
+      </div>
     </header>
   );
 } 

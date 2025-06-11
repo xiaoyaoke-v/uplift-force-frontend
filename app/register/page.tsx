@@ -7,6 +7,8 @@ import { register } from '@/apis';
 import { formatCurrentDateTime } from '@/utils/day';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
+import { useUser } from '@/contexts/UserContext';
+import { setRefreshToken, setToken } from '@/utils/token';
 
 const { Option } = Select;
 
@@ -15,13 +17,14 @@ export default function Register() {
   const { address, isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
   const router = useRouter();
+  const { setUser } = useUser();
 
   const [isLoading, setIsLoading] = useState(false);
 
   const onFinish = async (values: any) => {
 
     if (!isConnected || !address) {
-      // messageApi.error('Please connect your wallet first.'); // request.ts now handles this
+      // 消息提示由 request.ts 统一处理
       return;
     }
 
@@ -37,12 +40,23 @@ export default function Register() {
         message,
         signature,
       };
-      await register(registerData);
-      // messageApi.success('Registration successful!'); // request.ts now handles this
-      router.push('/'); // Navigate back to home or a success page
+      const registerResponse = await register(registerData);
+      // 注册成功消息由 request.ts 统一处理
+      console.log(registerResponse);
+      
+      setUser(registerResponse.user); // Set the nested user object in global context
+      setToken(registerResponse.token);
+      setRefreshToken(registerResponse.refresh_token);
+
+      // Redirect based on user role
+      if (registerResponse.user.role === 'player') {
+        router.push('/player');
+      } else if (registerResponse.user.role === 'booster') {
+        router.push('/booster');
+      }
     } catch (error: any) {
       console.error('Registration failed:', error);
-      // messageApi.error(`Registration failed: ${error.message || 'Unknown error'}`); // request.ts now handles this
+      // 注册失败消息由 request.ts 统一处理
     } finally {
       setIsLoading(false);
     }
@@ -50,7 +64,6 @@ export default function Register() {
 
   return (
     <div className="flex flex-col h-screen">
-      {/* {contextHolder} */}
       <Header />
       <main className="flex-1 flex flex-col items-center justify-center bg-gradient-to-br from-[#18181b] via-[#23234a] to-[#0a0a23] p-4">
         <div className="max-w-md w-full p-8 rounded-3xl bg-white/5 backdrop-blur-lg shadow-2xl border border-[#23234a]">
@@ -63,7 +76,7 @@ export default function Register() {
             onFinish={onFinish}
             layout="vertical"
             initialValues={{
-              role: 'user', // Default role
+              role: 'player', // Default role
               wallet_address: address || '',
             }}
           >
@@ -124,7 +137,7 @@ export default function Register() {
                 }}
                 suffixIcon={<span className="text-gray-400">&#9660;</span>} // Custom arrow icon
               >
-                <Option value="user" className="!bg-[#1a1a2e] !text-gray-300 hover:!bg-[#2e2e4a]">User</Option>
+                <Option value="player" className="!bg-[#1a1a2e] !text-gray-300 hover:!bg-[#2e2e4a]">Player</Option>
                 <Option value="booster" className="!bg-[#1a1a2e] !text-gray-300 hover:!bg-[#2e2e4a]">Booster</Option>
               </Select>
             </Form.Item>

@@ -1,5 +1,5 @@
 import { post, get } from '@/utils/request'
-import { type IUser } from '@/types'
+import { type IUser, type Order } from '@/types'
 
 
 interface IAddress {
@@ -32,8 +32,9 @@ interface IRefreshResponseData {
 }
 
 interface IRegisterResponseData {
-    access_token: string
+    token: string
     refresh_token: string
+    user: IUser
 }
 
 interface IVerifyResponseData {
@@ -47,11 +48,30 @@ interface IProfileResponseData {
     wallet_address: `0x${string}`
 }
 
+interface IUserInfo<IUser> {
+    access_token: string
+    expires_in: number
+    is_new_user: string
+    refresh_token: string
+    user: IUser
+}
+
+interface ISubmitOrderParams {
+    game: string;
+    currentRank: string;
+    desiredRank: string;
+}
+
+interface IAcceptOrderParams {
+    orderId: string;
+    boosterId: number;
+}
+
 export const check = (data: IAddress): Promise<IRegisterStatus> => {
     return post('/auth/checkWallet', {data})
 }
 
-export const login = (data: ISignature): Promise<IUser> => {
+export const login = (data: ISignature): Promise<IUserInfo<IUser>> => {
     return post('/auth/login', {data})
 }
 
@@ -73,4 +93,24 @@ export const verify = (): Promise<IVerifyResponseData> => {
 
 export const profile = (): Promise<IProfileResponseData> => {
     return get('/auth/profile')
+}
+
+export const getAvailableOrders = (): Promise<Order[]> => {
+    return get('/orders/available');
+}
+
+export const getBoosterOrders = (boosterId: number): Promise<Order[]> => {
+    return get(`/orders/booster/${boosterId}`);
+}
+
+export const getPlayerOrders = (playerId: number): Promise<Order[]> => {
+    return get(`/orders/player/${playerId}`);
+}
+
+export const submitOrder = (data: ISubmitOrderParams): Promise<Order> => {
+    return post('/orders/submit', { data });
+}
+
+export const acceptOrder = (data: IAcceptOrderParams): Promise<Order> => {
+    return post('/orders/accept', { data });
 }

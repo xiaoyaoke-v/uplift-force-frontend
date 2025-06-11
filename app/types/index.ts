@@ -16,3 +16,13 @@ export interface IUser {
     created_at: string
     [key: string]: any
 }
+
+export interface Order {
+  id: string;
+  game: string;
+  currentRank: string;
+  desiredRank: string;
+  status: 'pending' | 'accepted' | 'completed' | 'cancelled';
+  playerId: string;
+  boosterId?: string;
+}

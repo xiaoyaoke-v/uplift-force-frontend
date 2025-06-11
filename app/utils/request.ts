@@ -1,6 +1,6 @@
 import {getToken} from '@/utils/token'
 import { IResponse } from '@/types'
-import { message } from 'antd';
+// import { message } from 'antd';
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || '';
 const WHITE_LIST = ['checkWallet', 'login', 'register'];
@@ -97,30 +97,30 @@ export async function request<T>(url: string, options?: RequestOptions): Promise
         responseData = await response.json();
       } catch (jsonError: any) {
         const errorMessage = `Failed to parse JSON response from ${url}: ${jsonError.message}`;
-        message.error(errorMessage);
+        // message.error(errorMessage);
         throw new ApiError(errorMessage, response.status, null);
       }
     } else {
       const textResponse = await response.text().catch(() => '');
       const errorMessage = `Unexpected content type '${contentType}' from ${url}. Expected JSON. Response: ${textResponse.substring(0, 100)}...`;
-      message.error(errorMessage);
+      // message.error(errorMessage);
       throw new ApiError(errorMessage, response.status, textResponse);
     }
 
     if (isLogicalSuccess(response.status)) {
-      if (responseData?.message) {
-        message.success(responseData.message);
-      }
+      // if (responseData?.message) {
+      //   message.success(responseData.message);
+      // }
       return responseData?.data as T;
     } else {
       const errorMessage = responseData?.message || `HTTP error! status: ${response.status}`;
-      message.error(errorMessage);
+      // message.error(errorMessage);
       throw new ApiError(errorMessage, response.status, responseData?.data);
     }
   } catch (error: any) {
     if (!(error instanceof ApiError)) {
-      const errorMessage = error.message || 'Network or unknown error occurred.';
-      message.error(errorMessage);
+      // const errorMessage = error.message || 'Network or unknown error occurred.';
+      // message.error(errorMessage);
     }
     throw error; // Re-throw the original error or ApiError
   }
