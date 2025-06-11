@@ -3,8 +3,7 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import { type ReactNode } from 'react'
 import Providers from './providers'
-import { cookies } from 'next/headers'
-import { cookieToInitialState } from 'wagmi'
+import { UserProvider } from './contexts/UserContext';
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -20,7 +19,11 @@ export default function RootLayout(props: { children: ReactNode }) {
         <link rel="icon" href="/favicon.ico" />
       </head>
       <body className={inter.className + " min-h-screen flex flex-col"}>
-        <Providers>{props.children}</Providers>
+        <Providers>
+          <UserProvider>
+            {props.children}
+          </UserProvider>
+        </Providers>
       </body>
     </html>
   )

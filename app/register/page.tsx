@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react';
-import { Form, Input, Button, Select, message } from 'antd';
+import { Form, Input, Button, Select } from 'antd';
 import { useAccount, useSignMessage } from 'wagmi';
 import { register } from '@/apis';
 import { formatCurrentDateTime } from '@/utils/day';
@@ -14,23 +14,20 @@ export default function Register() {
   const [form] = Form.useForm();
   const { address, isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
-  const [messageApi, contextHolder] = message.useMessage();
   const router = useRouter();
 
   const [isLoading, setIsLoading] = useState(false);
-  const [signature, setSignature] = useState<string | null>(null);
 
   const onFinish = async (values: any) => {
 
     if (!isConnected || !address) {
-      messageApi.error('Please connect your wallet first.');
+      // messageApi.error('Please connect your wallet first.'); // request.ts now handles this
       return;
     }
 
     setIsLoading(true);
 
     try {
-
       const message = `Welcome to the uplift force at ${formatCurrentDateTime()}, please sign this message to prove you are the owner of the wallet.`;
       const signature = await signMessageAsync({ message });
 
@@ -40,12 +37,12 @@ export default function Register() {
         message,
         signature,
       };
-      const res = await register(registerData);
-      messageApi.success('Registration successful!');
+      await register(registerData);
+      // messageApi.success('Registration successful!'); // request.ts now handles this
       router.push('/'); // Navigate back to home or a success page
     } catch (error: any) {
       console.error('Registration failed:', error);
-      messageApi.error(`Registration failed: ${error.message || 'Unknown error'}`);
+      // messageApi.error(`Registration failed: ${error.message || 'Unknown error'}`); // request.ts now handles this
     } finally {
       setIsLoading(false);
     }
@@ -53,7 +50,7 @@ export default function Register() {
 
   return (
     <div className="flex flex-col h-screen">
-      {contextHolder}
+      {/* {contextHolder} */}
       <Header />
       <main className="flex-1 flex flex-col items-center justify-center bg-gradient-to-br from-[#18181b] via-[#23234a] to-[#0a0a23] p-4">
         <div className="max-w-md w-full p-8 rounded-3xl bg-white/5 backdrop-blur-lg shadow-2xl border border-[#23234a]">

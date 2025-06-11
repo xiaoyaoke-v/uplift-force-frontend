@@ -4,9 +4,9 @@ import Header from '@/components/Header';
 import { useAccount, useSignMessage } from "wagmi"
 import { FC, useEffect, useState } from 'react';
 import { check, login } from '@/apis'
-import { message } from 'antd';
 import { formatCurrentDateTime } from '@/utils/day';
 import { useRouter } from 'next/navigation';
+import { useUser } from '@/contexts/UserContext';
 
 interface IButton {
   isConnected: boolean
@@ -46,28 +46,19 @@ const NextButton: FC<IButton> = ({isConnected, isRegister, sign, register}) => {
 
 export default function Home() {
   
-  const [isSigned, setIsSigned] = useState(false)
   const [isRegister, setIsRegister] = useState(false)
-  const [messageContent, setMessageContent] = useState('')
   const { address, isConnected } = useAccount()
-  const [messageApi, contextHolder] = message.useMessage()
   const router = useRouter();
+  const { setUser } = useUser();
 
   const {signMessageAsync} = useSignMessage()
-
-  // Unified error handler for login-related issues
-  const handleLoginError = (error: any) => {
-    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred during sign-in or login.';
-    messageApi.error(`Sign-in or login failed: ${errorMessage}`);
-    setIsSigned(false);
-  };
 
   // Call checkWallet when wallet is connected
   useEffect(() => {
     const checkWallet = async () => {
       if(!address) return
       try {
-        const { data: { is_registered} } = await check({
+        const { is_registered } = await check({
           wallet_address: address!
         })
         setIsRegister(is_registered)
@@ -81,39 +72,29 @@ export default function Home() {
     }
   }, [isConnected, address]);
 
-  const sign = async () => {
-    if (!address) {
-      messageApi.error('Wallet address is not available.');
+  const onLogin = async () => {
+    if (!address || !isConnected) {
       return;
     }
-
-    // 
-
-
 
     try {
       const msg = `Welcome to the uplift force at ${formatCurrentDateTime()}, please sign this message to prove you are the owner of the wallet.`;
       const signature = await signMessageAsync({ message: msg });
 
-      const data = {
+      const loginParams = {
         wallet_address: address,
         message: msg,
         signature
       }
 
-      const res = await login(data)
+      const userData = await login(loginParams)
 
-      console.log(res);
+      console.log(userData);
       
-      messageApi.open({
-        type: 'success',
-        content: 'Login successful!',
-      });
+      setUser(userData);
 
-      setIsSigned(true);
-      setMessageContent(msg);
     } catch (error: any) {
-      handleLoginError(error);
+      console.error("Login failed:", error);
     }
   };
 
@@ -123,7 +104,6 @@ export default function Home() {
 
   return(
     <div className="flex flex-col h-screen">
-      {contextHolder}
       <Header />
       <main className="flex-1 flex items-center justify-center bg-gradient-to-br from-[#18181b] via-[#23234a] to-[#0a0a23]">
         <div className="max-w-2xl w-full text-center p-8 rounded-3xl bg-white/5 backdrop-blur-lg shadow-2xl border border-[#23234a]">
@@ -132,7 +112,7 @@ export default function Home() {
           </h1>
           <p className="text-lg md:text-xl text-gray-300 mb-8">
           Connecting players and boosters, becoming the best boosting platform on web3!         </p>
-          <NextButton isConnected={isConnected} isRegister={isRegister} sign={sign} register={registerUser}></NextButton>
+          <NextButton isConnected={isConnected} isRegister={isRegister} sign={onLogin} register={registerUser}></NextButton>
 
         </div>
       </main>
