@@ -61,16 +61,16 @@ export default function Home() {
         signature
       }
 
-      const loginResponse = await login(loginParams) // Get the full IUserInfo response
-
-      console.log(loginResponse);
+      const {access_token, refresh_token, user} = await login(loginParams) // Get the full IUserInfo response
       
-      setUser(loginResponse.user); // Set the nested user object in global context
+      setUser(user); // Set the nested user object in global context
+      setToken(access_token);
+      setRefreshToken(refresh_token);
 
       // Redirect based on user role
-      if (loginResponse.user.role === 'player') {
+      if (user.role === 'player') {
         router.push('/player');
-      } else if (loginResponse.user.role === 'booster') {
+      } else if (user.role === 'booster') {
         router.push('/booster');
       }
 

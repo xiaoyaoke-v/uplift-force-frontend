@@ -1,5 +1,6 @@
 'use client'
 import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { getToken } from '@/utils/token';
 import {type IUser } from '@/types'
 
 interface IUserContext {
@@ -13,7 +14,7 @@ export function UserProvider({ children }: {children: ReactNode}) {
   const [user, setUser] = useState<IUser | null>(null);
 
   return (
-    <UserContext.Provider value={{ user, setUser }}>
+    <UserContext.Provider value={{ user,setUser }}>
       {children}
     </UserContext.Provider>
   );

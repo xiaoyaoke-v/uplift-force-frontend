@@ -67,6 +67,39 @@ interface IAcceptOrderParams {
     boosterId: number;
 }
 
+interface IPlayerInfo {
+    characterName: string
+    tagLine: string
+}
+
+interface IRoleList {
+    freshBlood: boolean
+    hotStreak: boolean
+    inactive: boolean
+    leagueId: string
+    leaguePoints: number
+    losses: number
+    puuid: string
+    queueType: string
+    rank: string
+    summonerId: string
+    tier: string
+    veteran: boolean
+    wins: number
+}
+
+interface ISummoner {
+    gameName: string
+    puuid: string
+    tagLine: string
+}
+
+interface IPlayerAccount {
+    leagueCount: number
+    leagueEntries: IRoleList[]
+    summoner: ISummoner
+}
+
 export const check = (data: IAddress): Promise<IRegisterStatus> => {
     return post('/auth/checkWallet', {data})
 }
@@ -114,3 +147,9 @@ export const submitOrder = (data: ISubmitOrderParams): Promise<Order> => {
 export const acceptOrder = (data: IAcceptOrderParams): Promise<Order> => {
     return post('/orders/accept', { data });
 }
+
+export const getPlayerInfo = ({characterName, tagLine}: IPlayerInfo): Promise<IPlayerAccount> => {
+    return get('/riot/getWithRank', { params: {characterName, tagLine} });
+}
+
+export type { IPlayerInfo, IPlayerAccount };

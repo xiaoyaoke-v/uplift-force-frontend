@@ -17,12 +17,19 @@ export interface IUser {
     [key: string]: any
 }
 
+/** 游戏卡片类型 */
+export interface Game {
+  name: string;
+  imagePath: string;
+}
+
+/** 玩家订单类型 */
 export interface Order {
   id: string;
   game: string;
   currentRank: string;
   desiredRank: string;
   status: 'pending' | 'accepted' | 'completed' | 'cancelled';
-  playerId: string;
+  playerId?: string;
   boosterId?: string;
 }
