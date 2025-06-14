@@ -7,18 +7,9 @@ import { useUser } from '@/contexts/UserContext';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import { getAvailableOrders, getBoosterOrders, acceptOrder } from '@/apis';
+import type { Order } from '@/types';
 
 const { TabPane } = Tabs;
-
-interface Order {
-  id: string;
-  game: string;
-  currentRank: string;
-  desiredRank: string;
-  status: 'pending' | 'accepted' | 'completed' | 'cancelled';
-  playerId: string;
-  // Add more order details as needed
-}
 
 export default function BoosterDashboard() {
   const { user } = useUser();
