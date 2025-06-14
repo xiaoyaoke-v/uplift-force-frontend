@@ -500,7 +500,7 @@ export default function PlayerDashboard() {
                 className="w-full py-3 rounded-xl bg-gradient-to-r from-pink-400 via-purple-500 to-blue-400 text-white font-bold text-lg shadow-md hover:from-blue-500 hover:to-pink-500 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                 onClick={async () => {
                   setPlacingOrder(true);
-                  // TODO: 下单逻辑
+                  // TODO: 下单逻辑·
                   setTimeout(() => {
                     setPlacingOrder(false);
                     setPriceModalOpen(false);

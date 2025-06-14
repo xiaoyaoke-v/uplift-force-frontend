@@ -30,6 +30,6 @@ export interface Order {
   currentRank: string;
   desiredRank: string;
   status: 'pending' | 'accepted' | 'completed' | 'cancelled';
-  playerId?: string;
+  playerId: string | undefined;
   boosterId?: string;
 }
