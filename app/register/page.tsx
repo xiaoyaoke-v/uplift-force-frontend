@@ -22,32 +22,27 @@ export default function Register() {
   const [isLoading, setIsLoading] = useState(false);
 
   const onFinish = async (values: any) => {
-
+    console.log('onFinish called', values, isConnected, address);
     if (!isConnected || !address) {
-      // 消息提示由 request.ts 统一处理
+      console.log('Wallet not connected');
       return;
     }
-
     setIsLoading(true);
-
     try {
       const message = `Welcome to the uplift force at ${formatCurrentDateTime()}, please sign this message to prove you are the owner of the wallet.`;
       const signature = await signMessageAsync({ message });
-
       const registerData = {
         ...values,
         wallet_address: address,
         message,
         signature,
       };
+      console.log('Calling register API', registerData);
       const registerResponse = await register(registerData);
-      // 注册成功消息由 request.ts 统一处理
-      console.log(registerResponse);
-      
+      console.log('Register response', registerResponse);
       setUser(registerResponse.user); // Set the nested user object in global context
       setToken(registerResponse.token);
       setRefreshToken(registerResponse.refresh_token);
-
       // Redirect based on user role
       if (registerResponse.user.role === 'player') {
         router.push('/player');
