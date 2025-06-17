@@ -21,28 +21,19 @@ interface Order {
   desiredRank: string;
   status: 'pending' | 'accepted' | 'completed' | 'cancelled';
   boosterId?: string;
-  // Add more order details as needed
 }
 
 const games: Game[] = [
-  { name: "League of Legends", imagePath: "/assets/vPDdLphp8evDVz1631089142210908.png" },
+  { name: "League of Legends", imagePath: "/assets/lol.jpg" },
   { name: "Honor of Kings", imagePath: "/assets/zympYphpKVhaHN1685523686230531.png" },
   { name: "LoL Mobile", imagePath: "/assets/lS2IgphpoLR7Nz1627293846210726.png" },
   { name: "Genshin Impact", imagePath: "/assets/U0lBQphpIpZJ4r1691047295230803.png" },
   { name: "Naruto Online", imagePath: "/assets/YRWCFphpsLACiz1609212217201229.jpg" },
-  { name: "Identity V", imagePath: "/assets/DUlTBphp99strS1715841920240516.jpg" },
   { name: "Valorant", imagePath: "/assets/w8eVLphpkcD8vY1688004090230629.jpg" },
-  { name: "Delta Force", imagePath: "/assets/68GDUphpGl5gM71727258391240925.webp" },
+  { name: "Diablo Ⅳ", imagePath: "/assets/diablo.jpg" },
+  { name: "World of Warcraft", imagePath: "/assets/wow.jpg" },
 ];
 
-// 网络和服务器选项
-const networkOptions = [
-  { label: 'Telecom', value: 'telecom' },
-  { label: 'Unicom', value: 'unicom' },
-  { label: 'All Networks', value: 'all' },
-];
-
-// 国家/地区选项
 const regionOptions = [
   { label: 'BR1', value: 'BR1' },
   { label: 'EUN1', value: 'EUN1' },
@@ -61,21 +52,6 @@ const regionOptions = [
   { label: 'VN2', value: 'VN2' },
 ];
 
-// Tier 样式映射
-const tierStyles: Record<string, string> = {
-  'IRON': 'from-gray-200 via-gray-300 to-gray-100 border-gray-400 text-gray-800',
-  'BRONZE': 'from-yellow-100 via-yellow-200 to-yellow-50 border-yellow-400 text-yellow-800',
-  'SILVER': 'from-slate-100 via-slate-200 to-slate-50 border-slate-400 text-slate-800',
-  'GOLD': 'from-yellow-200 via-yellow-300 to-yellow-100 border-yellow-500 text-yellow-900',
-  'PLATINUM': 'from-green-100 via-green-200 to-green-50 border-green-400 text-green-800',
-  'EMERALD': 'from-emerald-100 via-emerald-200 to-emerald-50 border-emerald-400 text-emerald-800',
-  'DIAMOND': 'from-blue-100 via-blue-200 to-blue-50 border-blue-400 text-blue-800',
-  'MASTER': 'from-purple-100 via-purple-200 to-purple-50 border-purple-400 text-purple-800',
-  'GRANDMASTER': 'from-pink-100 via-pink-200 to-pink-50 border-pink-400 text-pink-800',
-  'CHALLENGER': 'from-orange-100 via-orange-200 to-orange-50 border-orange-400 text-orange-800',
-};
-
-// 段位顺序
 const RANK_ORDER = [
   'IRON',
   'BRONZE',
@@ -95,34 +71,26 @@ export default function PlayerDashboard() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // 表单相关状态
   const [selectedGame, setSelectedGame] = useState<string>('League of Legends');
-  const [isServerModalOpen, setIsServerModalOpen] = useState(false);
-  const [selectedNetwork, setSelectedNetwork] = useState('telecom');
-  const [selectedRegion, setSelectedRegion] = useState('NA');
-  const [isInputModalOpen, setIsInputModalOpen] = useState(false);
+  const [selectedRegion, setSelectedRegion] = useState<string>(''); // 默认为空
   const [riotId, setRiotId] = useState('');
-  const [tagLine, setTagLine] = useState('');
   const [searchLoading, setSearchLoading] = useState(false);
   const [playerInfo, setPlayerInfo] = useState<IPlayerAccount | null>(null);
   const [playerError, setPlayerError] = useState('');
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
-  const [serviceModalOpen, setServiceModalOpen] = useState(false);
-  const [selectedService, setSelectedService] = useState<string | null>(null);
-  const [targetModalOpen, setTargetModalOpen] = useState(false);
-  const [targetOptions, setTargetOptions] = useState<string[]>([]);
+  const [selectedService, setSelectedService] = useState<string>('Boosting');
   const [targetRank, setTargetRank] = useState<string | null>(null);
-  const [extraModalOpen, setExtraModalOpen] = useState(false);
   const [extraInfo, setExtraInfo] = useState('');
   const [price, setPrice] = useState<number | null>(null);
   const [placingOrder, setPlacingOrder] = useState(false);
-  const [priceModalOpen, setPriceModalOpen] = useState(false);
 
   useEffect(() => {
     if (!user) {
-      router.push('/'); // Redirect to login if not authenticated
+      router.push('/');
     } else if (user.role !== 'player') {
-      // Optionally redirect to a different page or show an access denied message
-      router.push('/'); // Redirect if not a player
+      router.push('/');
     }
   }, [user, router]);
 
@@ -144,22 +112,138 @@ export default function PlayerDashboard() {
     }
   };
 
-  const handleSubmitOrder = async (values: any) => {
+  const handleSearchPlayer = async () => {
+    if (!riotId || !selectedRegion) return;
+    
+    setSearchLoading(true);
+    setPlayerInfo(null);
+    setPlayerError('');
+    setSelectedIdx(null);
+    setTargetRank(null);
+    setPrice(null);
+    
     try {
-      const newOrder = await submitOrder({ ...values, playerId: user!.id });
-      setOrders(prevOrders => [...prevOrders, newOrder]);
-      form.resetFields();
-    } catch (error) {
-      console.error('Failed to submit order:', error);
+      const params: IPlayerInfo = { characterName: riotId, tagLine: selectedRegion };
+      const res = await getPlayerInfo(params);
+      console.log('Player Info:', res);
+      if (res.leagueCount === 0) {
+        setPlayerError('No player information found');
+      } else {
+        setPlayerInfo(res);
+      }
+    } catch (e) {
+      console.error('Search player failed:', e);
+      setPlayerError('No player information found');
+    } finally {
+      setSearchLoading(false);
     }
   };
 
-  // 默认选中第一项
-  useEffect(() => {
-    if (playerInfo && playerInfo.leagueEntries.length > 0 && selectedIdx === null) {
-      setSelectedIdx(0);
+  const handleRankSelection = (idx: number) => {
+    setSelectedIdx(idx);
+    if (playerInfo && playerInfo.leagueEntries[idx]) {
+      const currentTier = playerInfo.leagueEntries[idx].tier?.toUpperCase() || 'IRON';
+      const currentTierIdx = RANK_ORDER.indexOf(currentTier);
+      setTargetRank(null);
+      setPrice(null);
     }
-  }, [playerInfo]);
+  };
+
+  const calculatePrice = () => {
+    if (!targetRank || selectedIdx === null || !playerInfo) return;
+    
+    const currentTier = playerInfo.leagueEntries[selectedIdx].tier?.toUpperCase() || 'IRON';
+    const fromIdx = RANK_ORDER.indexOf(currentTier);
+    const toIdx = RANK_ORDER.indexOf(targetRank);
+    const diff = Math.max(0, toIdx - fromIdx);
+    const calculatedPrice = diff * 0.002;
+    setPrice(calculatedPrice);
+  };
+
+  const handlePlaceOrder = async () => {
+    if (!playerInfo || selectedIdx === null || !targetRank || !price) return;
+    
+    setPlacingOrder(true);
+    try {
+      setTimeout(() => {
+        setPlacingOrder(false);
+        setIsModalOpen(false);
+        setRiotId('');
+        setPlayerInfo(null);
+        setSelectedIdx(null);
+        setTargetRank(null);
+        setExtraInfo('');
+        setPrice(null);
+        setPlayerError('');
+        setSelectedRegion(''); // 重置为空
+      }, 1200);
+    } catch (error) {
+      console.error('Failed to place order:', error);
+      setPlacingOrder(false);
+    }
+  };
+
+  const getCurrentRank = () => {
+    if (!playerInfo || selectedIdx === null) return null;
+    return playerInfo.leagueEntries[selectedIdx].tier?.toUpperCase() || 'IRON';
+  };
+
+  const getCurrentRankIndex = () => {
+    const currentRank = getCurrentRank();
+    if (!currentRank) return -1;
+    return RANK_ORDER.indexOf(currentRank);
+  };
+
+  const getRankButtonStyle = (rank: string, index: number) => {
+    const currentRankIdx = getCurrentRankIndex();
+    const isCurrentRank = index === currentRankIdx;
+    const isBelowCurrent = index < currentRankIdx;
+    const isAboveCurrent = index > currentRankIdx;
+    const isSelected = targetRank === rank;
+
+    if (isCurrentRank) {
+      // 当前段位 - 高亮显示但不可选
+      return {
+        className: 'relative py-4 rounded-xl font-bold transition-all duration-300 border-2 bg-gradient-to-br from-yellow-600/60 to-orange-600/60 border-yellow-400 text-white cursor-not-allowed',
+        disabled: true,
+        label: '(CURRENT)'
+      };
+    } else if (isBelowCurrent) {
+      // 低于当前段位 - 灰色不可选
+      return {
+        className: 'relative py-4 rounded-xl font-bold transition-all duration-300 border-2 bg-gray-800/40 border-gray-700/50 text-gray-500 cursor-not-allowed opacity-50',
+        disabled: true,
+        label: ''
+      };
+    } else if (isAboveCurrent && isSelected) {
+      // 高于当前段位且被选中
+      return {
+        className: 'relative py-4 rounded-xl font-bold transition-all duration-300 border-2 bg-gradient-to-br from-pink-600/50 to-purple-600/50 border-pink-400 text-white shadow-lg shadow-pink-400/30 transform scale-105',
+        disabled: false,
+        label: ''
+      };
+    } else if (isAboveCurrent) {
+      // 高于当前段位但未选中 - 可选择
+      return {
+        className: 'relative py-4 rounded-xl font-bold transition-all duration-300 border-2 bg-gray-900/40 border-gray-600/50 text-gray-300 hover:border-pink-400/70 hover:bg-pink-900/20 cursor-pointer',
+        disabled: false,
+        label: ''
+      };
+    }
+
+    // 默认情况（如果没有选择当前段位）
+    return {
+      className: 'relative py-4 rounded-xl font-bold transition-all duration-300 border-2 bg-gray-900/40 border-gray-600/50 text-gray-300 hover:border-pink-400/70 hover:bg-pink-900/20 cursor-pointer',
+      disabled: false,
+      label: ''
+    };
+  };
+
+  useEffect(() => {
+    if (targetRank) {
+      calculatePrice();
+    }
+  }, [targetRank, selectedIdx, playerInfo]);
 
   if (!user || user.role !== 'player') {
     return <p>Access Denied or Loading User Data...</p>;
@@ -170,8 +254,7 @@ export default function PlayerDashboard() {
       <Header />
       <main className="flex-1 flex flex-col items-center bg-gradient-to-br from-[#18181b] via-[#23234a] to-[#0a0a23] px-4 py-8">
         <div className="w-full">
-
-          {/* New Promotional Section */}
+          {/* Promotional Sections */}
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-8">
               Enhance Your Gaming Experience
@@ -183,9 +266,7 @@ export default function PlayerDashboard() {
               <PromoCard icon={<RocketOutlined style={{ fontSize: '48px', color: '#e7b76e' }} />} title="Fast Response" description="Quick matching and instant start to save your valuable time." />
             </div>
           </div>
-          {/* End New Promotional Section */}
 
-          {/* Second Promotional Section */}
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-8">
               Our Advantages
@@ -197,9 +278,7 @@ export default function PlayerDashboard() {
               <PromoCard icon={<RocketOutlined style={{ fontSize: '48px', color: '#9333ea' }} />} title="Customized Service" description="Personalized boosting plans tailored to your needs." />
             </div>
           </div>
-          {/* End Second Promotional Section */}
 
-          {/* Fifth Promotional Section - Popular Games */}
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-8">
               Popular Games Covered
@@ -212,7 +291,6 @@ export default function PlayerDashboard() {
               ))}
             </div>
           </div>
-          {/* End Fifth Promotional Section */}
 
           <div className="text-center mt-12">
             <Button
@@ -224,297 +302,346 @@ export default function PlayerDashboard() {
               Order Now
             </Button>
           </div>
+
+          {/* 赛博朋克风格表单弹窗 */}
           <Modal
-            title={<span className="block truncate text-lg font-bold">Select a Game</span>}
             open={isModalOpen}
-            onCancel={() => setIsModalOpen(false)}
+            onCancel={() => {
+              setIsModalOpen(false);
+              setRiotId('');
+              setPlayerInfo(null);
+              setSelectedIdx(null);
+              setTargetRank(null);
+              setExtraInfo('');
+              setPrice(null);
+              setPlayerError('');
+              setSelectedRegion('');
+            }}
             footer={null}
             centered
-            width={700}
+            width={900}
+            style={{ maxHeight: '90vh' }}
+            bodyStyle={{ 
+              maxHeight: '80vh', 
+              overflowY: 'auto', 
+              padding: '0',
+              background: 'linear-gradient(135deg, #0f0f23 0%, #1a1a3e 50%, #2d1b69 100%)',
+              borderRadius: '16px',
+              /* 隐藏滚动条但保持可滚动 */
+              scrollbarWidth: 'none', /* Firefox */
+              msOverflowStyle: 'none', /* IE and Edge */
+            }}
+            className="cyber-modal"
+            maskStyle={{ 
+              backgroundColor: 'rgba(0, 0, 0, 0.85)',
+              backdropFilter: 'blur(8px)'
+            }}
           >
-            <div className="grid grid-cols-4 gap-6 py-4">
-              {games.map((game) => {
-                const disabled = game.name !== 'League of Legends';
-                return (
-                  <button
-                    key={game.name}
-                    className={`flex flex-col items-center justify-center w-full aspect-square max-w-[160px] h-[160px] mx-auto p-4 rounded-xl border transition-all duration-200 ${disabled ? 'bg-gray-200 cursor-not-allowed opacity-60' : 'bg-white/10 hover:bg-blue-500/20 cursor-pointer'} ${selectedGame === game.name && !disabled ? 'ring-2 ring-blue-400' : ''}`}
-                    disabled={disabled}
-                    onClick={() => {
-                      if (!disabled) {
-                        setSelectedGame(game.name);
-                        setIsModalOpen(false);
-                        setTimeout(() => setIsServerModalOpen(true), 200);
-                      }
-                    }}
-                    type="button"
-                  >
-                    <img
-                      src={game.imagePath}
-                      alt={game.name}
-                      className="w-16 h-16 object-cover rounded-lg mb-3"
-                      style={{ filter: disabled ? 'grayscale(1)' : 'none' }}
-                    />
-                    <span className="text-base font-semibold text-gray-900 text-center break-words w-full" style={{ color: disabled ? '#aaa' : undefined }}>{game.name}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </Modal>
-          {/* 服务器选择弹窗 */}
-          <Modal
-            title={<span className="block truncate text-lg font-bold">Select Region Server</span>}
-            open={isServerModalOpen}
-            onCancel={() => setIsServerModalOpen(false)}
-            footer={null}
-            centered
-            width={500}
-            className="!rounded-2xl !shadow-2xl"
-          >
-            <div className="py-4 flex flex-col items-center">
-              <div className="grid grid-cols-4 gap-4 w-full">
-                {regionOptions.map(opt => (
-                  <button
-                    key={opt.value}
-                    className={`w-full py-3 px-2 rounded-xl border-2 font-semibold transition-all duration-200 text-base shadow-sm ${selectedRegion === opt.value ? 'bg-gradient-to-r from-purple-400 to-purple-600 text-white border-purple-500 shadow-lg scale-105' : 'bg-white/10 hover:bg-purple-100 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200'}`}
-                    onClick={() => {
-                      setSelectedRegion(opt.value);
-                      setIsServerModalOpen(false);
-                      setTimeout(() => setIsInputModalOpen(true), 300);
-                    }}
-                    type="button"
-                  >
-                    {opt.label}
-                  </button>
-                ))}
+            <div className="relative overflow-hidden">
+              {/* 赛博朋克背景效果 */}
+              <div className="absolute inset-0 bg-gradient-to-br from-cyan-900/20 via-purple-900/20 to-pink-900/20"></div>
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500"></div>
+              
+              {/* 标题 */}
+              <div className="relative p-6 border-b border-cyan-500/30">
+                <h2 className="text-3xl font-bold text-center bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent tracking-wider">
+                  ⚡ BOOST PROTOCOL ⚡
+                </h2>
+                <div className="text-center text-sm text-cyan-300/70 mt-2">INITIALIZE RANK ENHANCEMENT SEQUENCE</div>
               </div>
-            </div>
-          </Modal>
-          {/* 输入角色名和tagLine弹窗 */}
-          <Modal
-            title={<span className="block truncate text-2xl font-extrabold text-gradient bg-gradient-to-r from-blue-400 via-purple-500 to-pink-400 bg-clip-text text-transparent">Player Information</span>}
-            open={isInputModalOpen}
-            onCancel={() => setIsInputModalOpen(false)}
-            footer={null}
-            centered
-            width={600}
-            className="!rounded-2xl !shadow-2xl web3-modal"
-          >
-            <div className="flex flex-col gap-6 py-4">
-              {playerInfo ? (
-                <div>
-                  <div className="mb-8 text-center text-2xl font-extrabold text-gradient bg-gradient-to-r from-blue-400 via-purple-500 to-pink-400 bg-clip-text text-transparent tracking-wide drop-shadow">{playerInfo.summoner.gameName}</div>
-                  <div className="grid grid-cols-2 gap-6">
-                    {playerInfo.leagueEntries.map((entry: IPlayerAccount['leagueEntries'][number], idx) => {
-                      const tier = entry.tier?.toUpperCase() || 'UNRANKED';
-                      const tierTextStyles: Record<string, string> = {
-                        'IRON': 'text-gray-500',
-                        'BRONZE': 'text-yellow-700',
-                        'SILVER': 'text-slate-500',
-                        'GOLD': 'text-yellow-500',
-                        'PLATINUM': 'text-green-500',
-                        'EMERALD': 'text-emerald-500',
-                        'DIAMOND': 'text-blue-500',
-                        'MASTER': 'text-purple-500',
-                        'GRANDMASTER': 'text-pink-500',
-                        'CHALLENGER': 'text-orange-500',
-                      };
-                      const textStyle = tierTextStyles[tier] || 'text-gray-700';
-                      // 浅色背景
-                      const itemBg = 'bg-gradient-to-br from-blue-900 via-purple-900 to-pink-900 border border-purple-500';
-                      // hover/选中样式
-                      const isSelected = selectedIdx === idx;
+
+              <div className="relative p-8 space-y-8">
+                {/* 游戏选择 */}
+                <div className="relative">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-1 h-6 bg-gradient-to-b from-cyan-400 to-purple-500"></div>
+                    <h3 className="text-xl font-bold text-cyan-300 tracking-wider">SELECT GAME UNIVERSE</h3>
+                  </div>
+                  <div className="grid grid-cols-4 gap-4">
+                    {games.map((game) => {
+                      const disabled = game.name !== 'League of Legends';
                       return (
-                        <div
-                          key={entry.queueType}
-                          className={
-                            `${itemBg} rounded-2xl p-8 shadow-lg flex flex-col items-center cursor-pointer transition-all duration-150 ` +
-                            `hover:shadow-2xl hover:border-pink-400 hover:scale-105 ` +
-                            `${isSelected ? 'ring-4 ring-pink-400 scale-105' : ''}`
-                          }
-                          onClick={() => {
-                            setSelectedIdx(idx);
-                            // 计算可选目标段位
-                            const currentTierIdx = RANK_ORDER.indexOf(tier);
-                            setTargetOptions(RANK_ORDER.slice(currentTierIdx + 1));
-                            setTargetRank(null);
-                            setIsInputModalOpen(false); // 关闭 Player Information 弹窗
-                            setTimeout(() => setServiceModalOpen(true), 200);
-                          }}
+                        <button
+                          key={game.name}
+                          className={`group relative flex flex-col items-center p-4 rounded-xl border-2 transition-all duration-300 ${
+                            disabled 
+                              ? 'bg-gray-900/50 border-gray-700/50 cursor-not-allowed opacity-40' 
+                              : selectedGame === game.name 
+                                ? 'bg-gradient-to-br from-cyan-900/50 to-purple-900/50 border-cyan-400 shadow-lg shadow-cyan-400/30 transform scale-105' 
+                                : 'bg-gray-900/30 border-gray-600/50 hover:border-purple-400/70 hover:bg-purple-900/20'
+                          }`}
+                          disabled={disabled}
+                          onClick={() => !disabled && setSelectedGame(game.name)}
                         >
-                          <div className="text-xl font-bold mb-3 tracking-wider uppercase drop-shadow-sm opacity-95 text-gradient bg-gradient-to-r from-blue-300 via-purple-300 to-pink-300 bg-clip-text text-transparent">{entry.queueType}</div>
-                          <div className={`text-3xl font-extrabold mt-2 drop-shadow-lg ${textStyle}`}>
-                            {entry.tier} {entry.rank}
-                          </div>
-                        </div>
+                          <img src={game.imagePath} alt={game.name} className="w-12 h-12 object-cover rounded-lg mb-2" />
+                          <span className="text-sm font-medium text-center text-gray-300">{game.name}</span>
+                          {selectedGame === game.name && !disabled && (
+                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-cyan-400 rounded-full animate-pulse"></div>
+                          )}
+                        </button>
                       );
                     })}
                   </div>
                 </div>
-              ) : playerError ? (
-                <div className="text-red-500 text-center text-base font-semibold py-6">{playerError}</div>
-              ) : (
-                <>
-                  <input
-                    type="text"
-                    placeholder="Riot ID"
-                    value={riotId}
-                    onChange={e => setRiotId(e.target.value)}
-                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none text-base"
-                  />
-                  <button
-                    className="w-full mt-2 py-3 rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 text-white font-bold text-base shadow-md hover:from-purple-500 hover:to-blue-500 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
-                    type="button"
-                    disabled={searchLoading || !riotId}
-                    onClick={async () => {
-                      setSearchLoading(true);
-                      setPlayerInfo(null);
-                      setPlayerError('');
-                      try {
-                        const params: IPlayerInfo = { characterName: riotId, tagLine: selectedRegion };
-                        const res = await getPlayerInfo(params);
-                        console.log('Player Info:', res);
-                        if (res.leagueCount === 0) {
-                          setPlayerError('No player information found');
-                        } else {
-                          setPlayerInfo(res);
-                        }
-                      } catch (e) {
-                        console.error('Search player failed:', e);
-                        setPlayerError('No player information found');
-                      } finally {
-                        setSearchLoading(false);
-                      }
-                    }}
-                  >
-                    {searchLoading ? 'Searching...' : 'Search Player'}
-                  </button>
-                </>
-              )}
+
+                {/* 服务器选择 */}
+                <div className="relative">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-1 h-6 bg-gradient-to-b from-purple-400 to-pink-500"></div>
+                    <h3 className="text-xl font-bold text-purple-300 tracking-wider">SELECT REGION NODE</h3>
+                  </div>
+                  <div className="grid grid-cols-6 gap-3">
+                    {regionOptions.map(opt => (
+                      <button
+                        key={opt.value}
+                        className={`relative py-3 px-2 rounded-lg border-2 font-bold transition-all duration-300 ${
+                          selectedRegion === opt.value 
+                            ? 'bg-gradient-to-br from-purple-600 to-pink-600 border-pink-400 text-white shadow-lg shadow-pink-400/30 transform scale-105' 
+                            : 'bg-gray-900/40 border-gray-600/50 text-gray-300 hover:border-purple-400/70 hover:bg-purple-900/20 hover:text-purple-300'
+                        }`}
+                        onClick={() => setSelectedRegion(opt.value)}
+                      >
+                        {opt.label}
+                        {selectedRegion === opt.value && (
+                          <div className="absolute -top-1 -right-1 w-3 h-3 bg-pink-400 rounded-full animate-pulse"></div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 玩家信息查询 */}
+                <div className="relative">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-1 h-6 bg-gradient-to-b from-pink-400 to-orange-500"></div>
+                    <h3 className="text-xl font-bold text-pink-300 tracking-wider">PLAYER IDENTIFICATION</h3>
+                  </div>
+                  <div className="flex gap-4 mb-6">
+                    <div className="flex-1 relative">
+                      <input
+                        type="text"
+                        placeholder="ENTER RIOT ID..."
+                        value={riotId}
+                        onChange={e => setRiotId(e.target.value)}
+                        className="w-full px-6 py-4 bg-gray-900/60 border-2 border-gray-600/50 rounded-xl text-white placeholder-gray-400 focus:border-cyan-400 focus:bg-gray-900/80 outline-none transition-all font-mono tracking-wider"
+                      />
+                      <div className="absolute right-4 top-1/2 transform -translate-y-1/2 text-cyan-400">
+                        {riotId && '●'}
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleSearchPlayer}
+                      disabled={searchLoading || !riotId || !selectedRegion}
+                      className="px-8 py-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-xl font-bold tracking-wider hover:from-blue-600 hover:to-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-lg shadow-cyan-500/30"
+                    >
+                      {searchLoading ? 'SCANNING...' : 'SCAN PLAYER'}
+                    </button>
+                  </div>
+                  
+                  {playerError && (
+                    <div className="text-red-400 text-center py-4 bg-red-900/20 border border-red-500/30 rounded-lg font-mono">
+                      ERROR: {playerError}
+                    </div>
+                  )}
+
+                  {playerInfo && (
+                    <div className="bg-gradient-to-br from-gray-900/60 to-purple-900/20 border border-purple-500/30 rounded-xl p-6">
+                      <div className="text-center text-2xl font-bold mb-6 text-cyan-300 tracking-wider">
+                        PLAYER: {playerInfo.summoner.gameName}
+                      </div>
+                      <div className="mb-4">
+                        <h4 className="font-bold mb-4 text-purple-300 tracking-wider">SELECT CURRENT RANK</h4>
+                        <div className="grid grid-cols-2 gap-4">
+                          {playerInfo.leagueEntries.map((entry, idx) => {
+                            const tier = entry.tier?.toUpperCase() || 'UNRANKED';
+                            const isSelected = selectedIdx === idx;
+                            return (
+                              <div
+                                key={entry.queueType}
+                                className={`relative p-6 rounded-xl border-2 cursor-pointer transition-all duration-300 ${
+                                  isSelected 
+                                    ? 'bg-gradient-to-br from-blue-600/30 to-purple-600/30 border-cyan-400 shadow-lg shadow-cyan-400/30 transform scale-105' 
+                                    : 'bg-gray-900/40 border-gray-600/50 hover:border-purple-400/70 hover:bg-purple-900/20'
+                                }`}
+                                onClick={() => handleRankSelection(idx)}
+                              >
+                                <div className="text-center">
+                                  <div className="font-bold text-sm mb-3 text-purple-300 tracking-wider">{entry.queueType}</div>
+                                  <div className="text-xl font-bold text-cyan-300">
+                                    {entry.tier} {entry.rank}
+                                  </div>
+                                </div>
+                                {isSelected && (
+                                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-cyan-400 rounded-full animate-pulse"></div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 服务类型选择 */}
+                {playerInfo && selectedIdx !== null && (
+                  <div className="relative">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="w-1 h-6 bg-gradient-to-b from-orange-400 to-red-500"></div>
+                      <h3 className="text-xl font-bold text-orange-300 tracking-wider">SELECT SERVICE PROTOCOL</h3>
+                    </div>
+                    <div className="grid grid-cols-2 gap-6">
+                      <button
+                        className={`relative py-6 rounded-xl font-bold text-lg transition-all duration-300 border-2 ${
+                          selectedService === 'Boosting' 
+                            ? 'bg-gradient-to-br from-orange-600/50 to-red-600/50 border-orange-400 text-white shadow-lg shadow-orange-400/30 transform scale-105' 
+                            : 'bg-gray-900/40 border-gray-600/50 text-gray-300 hover:border-orange-400/70 hover:bg-orange-900/20'
+                        }`}
+                        onClick={() => setSelectedService('Boosting')}
+                      >
+                        RANK BOOSTING
+                        {selectedService === 'Boosting' && (
+                          <div className="absolute -top-1 -right-1 w-4 h-4 bg-orange-400 rounded-full animate-pulse"></div>
+                        )}
+                      </button>
+                      <button
+                        className="py-6 rounded-xl font-bold text-lg border-2 bg-gray-900/20 border-gray-700/30 text-gray-500 cursor-not-allowed relative overflow-hidden"
+                        disabled
+                      >
+                        <span className="relative z-10">PLAY WITH</span>
+                        <div className="absolute inset-0 bg-red-900/20"></div>
+                        {/* <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-xs text-red-400 font-mono">
+                          [LOCKED]
+                        </div> */}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* 目标段位选择 - 修改后的版本 */}
+                {playerInfo && selectedIdx !== null && selectedService && (
+                  <div className="relative">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="w-1 h-6 bg-gradient-to-b from-red-400 to-pink-500"></div>
+                      <h3 className="text-xl font-bold text-red-300 tracking-wider">TARGET RANK PROTOCOL</h3>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      {RANK_ORDER.map((rank, index) => {
+                        const style = getRankButtonStyle(rank, index);
+                        return (
+                          <button
+                            key={rank}
+                            className={style.className}
+                            disabled={style.disabled}
+                            onClick={() => !style.disabled && setTargetRank(rank)}
+                          >
+                            <div className="flex flex-col items-center">
+                              <span>{rank.charAt(0) + rank.slice(1).toLowerCase()}</span>
+                              {style.label && (
+                                <span className="text-xs mt-1 opacity-80">{style.label}</span>
+                              )}
+                            </div>
+                            {targetRank === rank && !style.disabled && (
+                              <div className="absolute -top-1 -right-1 w-4 h-4 bg-pink-400 rounded-full animate-pulse"></div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* 额外信息 */}
+                {targetRank && (
+                  <div className="relative">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="w-1 h-6 bg-gradient-to-b from-purple-400 to-blue-500"></div>
+                      <h3 className="text-xl font-bold text-purple-300 tracking-wider">ADDITIONAL PARAMETERS</h3>
+                    </div>
+                    <textarea
+                      className="w-full p-6 bg-gray-900/60 border-2 border-gray-600/50 rounded-xl text-white placeholder-gray-400 focus:border-purple-400 focus:bg-gray-900/80 outline-none resize-vertical font-mono tracking-wider"
+                      style={{
+                        scrollbarWidth: 'none', /* Firefox */
+                        msOverflowStyle: 'none', /* IE and Edge */
+                      }}
+                      rows={4}
+                      placeholder="ENTER SPECIAL REQUIREMENTS OR NOTES..."
+                      value={extraInfo}
+                      onChange={e => setExtraInfo(e.target.value)}
+                    />
+                  </div>
+                )}
+
+                {/* 价格显示和下单 */}
+                {price !== null && (
+                  <div className="relative bg-gradient-to-br from-gray-900/80 to-purple-900/40 border-2 border-purple-500/50 rounded-xl p-8">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500"></div>
+                    <div className="text-center">
+                      <div className="text-sm text-purple-300 mb-2 tracking-wider font-mono">BOOST PROTOCOL COST</div>
+                      <div className="text-4xl font-bold bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent mb-6 tracking-wider">
+                        {price} ETH
+                      </div>
+                      <button
+                        onClick={handlePlaceOrder}
+                        disabled={placingOrder}
+                        className="w-full py-4 bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 text-white font-bold text-xl rounded-xl hover:from-red-600 hover:via-pink-600 hover:to-purple-600 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-500/40 tracking-wider"
+                      >
+                        {placingOrder ? 'INITIALIZING PROTOCOL...' : '⚡ EXECUTE BOOST PROTOCOL ⚡'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
-            <style jsx global>{`
-              .web3-modal {
-                background: linear-gradient(135deg, #181a2a 0%, #23234d 100%);
-                border: 2px solid #6d28d9;
-              }
-            `}</style>
           </Modal>
-          {/* 服务选择弹窗 */}
-          <AntdModal
-            open={serviceModalOpen}
-            onCancel={() => setServiceModalOpen(false)}
-            footer={null}
-            title={<span className="text-xl font-bold">Select Service</span>}
-            centered
-          >
-            <div className="grid grid-cols-2 gap-6 my-6">
-              <button
-                className={`py-6 rounded-xl font-bold text-lg transition-all border-2
-                  ${selectedService === 'Boosting' ? 'bg-gradient-to-r from-blue-400 via-purple-500 to-pink-400 text-white border-pink-400 scale-105 shadow-lg' : 'bg-white/10 text-purple-700 border-purple-200 hover:border-pink-400 hover:bg-purple-50'}`}
-                onClick={() => {
-                  setSelectedService('Boosting');
-                  setServiceModalOpen(false);
-                  setTimeout(() => setTargetModalOpen(true), 200);
-                }}
-              >
-                Boosting
-              </button>
-              <button
-                className="py-6 rounded-xl font-bold text-lg border-2 bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-60"
-                disabled
-              >
-                Play with
-              </button>
-            </div>
-          </AntdModal>
-          {/* 目标段位选择弹窗（按钮风格） */}
-          <AntdModal
-            open={targetModalOpen}
-            onCancel={() => setTargetModalOpen(false)}
-            footer={null}
-            title={<span className="text-xl font-bold">Select Target Rank</span>}
-            centered
-          >
-            <div className="grid grid-cols-3 gap-4 my-4">
-              {targetOptions.map(opt => (
-                <button
-                  key={opt}
-                  className={`py-3 rounded-xl font-bold text-base transition-all border-2
-                    ${targetRank === opt ? 'bg-gradient-to-r from-blue-400 via-purple-500 to-pink-400 text-white border-pink-400 scale-105 shadow-lg' : 'bg-white/10 text-purple-700 border-purple-200 hover:border-pink-400 hover:bg-purple-50'}`}
-                  onClick={() => {
-                    setTargetRank(opt);
-                    setTargetModalOpen(false);
-                    setTimeout(() => setExtraModalOpen(true), 200);
-                  }}
-                >
-                  {opt.charAt(0) + opt.slice(1).toLowerCase()}
-                </button>
-              ))}
-            </div>
-          </AntdModal>
-          {/* 额外信息弹窗 */}
-          <AntdModal
-            open={extraModalOpen}
-            footer={null}
-            title={<span className="text-xl font-bold">Additional Information</span>}
-            centered
-            onCancel={() => setExtraModalOpen(false)}
-          >
-            <textarea
-              className="w-full min-h-[100px] p-3 rounded-lg border border-purple-200 focus:border-pink-400 focus:ring-2 focus:ring-pink-100 outline-none text-base resize-vertical"
-              placeholder="Enter any additional information (optional)"
-              value={extraInfo}
-              onChange={e => setExtraInfo(e.target.value)}
-            />
-            <div className="mt-6 flex flex-col items-center gap-4">
-              <button
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-400 via-purple-500 to-pink-400 text-white font-bold text-lg shadow-md hover:from-purple-500 hover:to-blue-500 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-                onClick={() => {
-                  // 计算价格
-                  if (!targetRank || selectedIdx === null || !playerInfo) return;
-                  const currentTier = playerInfo.leagueEntries[selectedIdx].tier?.toUpperCase() || 'IRON';
-                  const fromIdx = RANK_ORDER.indexOf(currentTier);
-                  const toIdx = RANK_ORDER.indexOf(targetRank);
-                  const diff = Math.max(0, toIdx - fromIdx);
-                  setPrice(diff * 0.002);
-                  setExtraModalOpen(false);
-                  setTimeout(() => setPriceModalOpen(true), 200);
-                }}
-                disabled={!targetRank}
-              >
-                Get Price
-              </button>
-            </div>
-          </AntdModal>
-          {/* 价格弹窗 */}
-          <AntdModal
-            open={priceModalOpen}
-            footer={null}
-            title={<span className="text-xl font-bold">Price</span>}
-            centered
-            onCancel={() => setPriceModalOpen(false)}
-          >
-            <div className="flex flex-col items-center gap-6 py-4">
-              <div className="text-2xl font-extrabold text-gradient bg-gradient-to-r from-blue-400 via-purple-500 to-pink-400 bg-clip-text text-transparent">{price} ETH</div>
-              <button
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-pink-400 via-purple-500 to-blue-400 text-white font-bold text-lg shadow-md hover:from-blue-500 hover:to-pink-500 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-                onClick={async () => {
-                  setPlacingOrder(true);
-                  // TODO: 下单逻辑·
-                  setTimeout(() => {
-                    setPlacingOrder(false);
-                    setPriceModalOpen(false);
-                    setPrice(null);
-                  }, 1200);
-                }}
-                disabled={placingOrder}
-              >
-                {placingOrder ? 'Placing Order...' : 'Place Order'}
-              </button>
-            </div>
-          </AntdModal>
+
+          <style jsx global>{`
+            /* 去掉Modal的黑框 */
+            .cyber-modal .ant-modal-content {
+              background: transparent !important;
+              border-radius: 16px !important;
+              overflow: hidden !important;
+              box-shadow: 0 0 50px rgba(139, 92, 246, 0.3) !important;
+              border: none !important;
+              padding: 0 !important;
+            }
+            .cyber-modal .ant-modal-header {
+              display: none !important;
+            }
+            .cyber-modal .ant-modal-close {
+              color: #22d3ee !important;
+              font-size: 20px !important;
+              top: 16px !important;
+              right: 16px !important;
+              z-index: 1000 !important;
+              background: rgba(0, 0, 0, 0.3) !important;
+              border-radius: 50% !important;
+              width: 32px !important;
+              height: 32px !important;
+              display: flex !important;
+              align-items: center !important;
+              justify-content: center !important;
+              border: 1px solid rgba(34, 211, 238, 0.3) !important;
+            }
+            .cyber-modal .ant-modal-close:hover {
+              background: rgba(34, 211, 238, 0.2) !important;
+            }
+            .cyber-modal .ant-modal-body {
+              padding: 0 !important;
+            }
+
+            /* 完全隐藏滚动条 */
+            .cyber-modal .ant-modal-body::-webkit-scrollbar {
+              display: none !important;
+            }
+            
+            /* 为textarea也隐藏滚动条 */
+            textarea::-webkit-scrollbar {
+              display: none !important;
+            }
+          `}</style>
         </div>
       </main>
     </div>
   );
-} 
+}
