@@ -6,13 +6,14 @@ import { TrophyOutlined, SafetyOutlined, DollarOutlined, RocketOutlined } from '
 import { useUser } from '@/contexts/UserContext';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
-import { getPlayerOrders, submitOrder, getPlayerInfo, createOrder } from '@/apis';
-import type { IPlayerInfo, IPlayerAccount, ICreateOrderParam } from '@/apis';
+import { getPlayerOrders, submitOrder, getPlayerInfo, createOrder, ICreateOrderParam } from '@/apis';
+import type { IPlayerInfo, IPlayerAccount } from '@/apis';
 import GameCard from '@/components/ui/GameCard';
 import PromoCard from '@/components/ui/PromoCard';
 import type { Game } from '@/types';
-import { parseEther, parseAbi, createPublicClient, createWalletClient, custom } from "viem"
+import { parseEther, parseAbi, createPublicClient, createWalletClient, custom, ContractFunctionExecutionError  } from "viem"
 import { useAccount, useSignMessage } from "wagmi"
+import { mainnet, sepolia, hardhat, arbitrum } from 'viem/chains';
 
 const { Option } = Select;
 
@@ -65,6 +66,13 @@ const RANK_ORDER = [
   'GRANDMASTER',
   'CHALLENGER',
 ];
+
+const chainMap = {
+  1: mainnet,        // 以太坊主网
+  11155111: sepolia, // Sepolia 测试网
+  31337: hardhat,    // Hardhat 本地网络
+  42161: arbitrum,   // Arbitrum One
+};
 
 export default function PlayerDashboard() {
   const { user } = useUser();
@@ -119,6 +127,34 @@ export default function PlayerDashboard() {
       fetchOrders();
     }
   }, [user]);
+
+
+  // 获取当前链配置的函数
+const getCurrentChain = async () => {
+  if (typeof window !== 'undefined' && window.ethereum) {
+    try {
+      const chainId = await window.ethereum.request({
+        method: 'eth_chainId'
+      });
+      const numericChainId = parseInt(chainId, 16);
+      
+      console.log('当前链ID:', numericChainId);
+      
+      const chain = chainMap[numericChainId];
+      if (!chain) {
+        console.warn(`不支持的链ID: ${numericChainId}`);
+        // 返回默认链或者抛出错误
+        return sepolia; // 或者你的默认链
+      }
+      
+      return chain;
+    } catch (error) {
+      console.error('获取链ID失败:', error);
+      return sepolia; // 默认链
+    }
+  }
+  return sepolia; // 默认链
+};
 
   const fetchOrders = async () => {
     setLoadingOrders(true);
@@ -180,8 +216,8 @@ const handleCreateOrderOnChain = async() => {
   setMessage("Preparing transaction...");
 
   try {
-    const contractAddr = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS;
-    const contractAbiRaw = process.env.NEXT_PUBLIC_CONTRACT_ABI || "";
+    const contractAddr = process.env.NEXT_PUBLIC_MAIN_CONTRACT_ADDR;
+    const contractAbiRaw = process.env.NEXT_PUBLIC_MAIN_CONTRACT_CREATE_ORDER_ABI || "";
 
     let contractAbi;
     try {
@@ -204,6 +240,7 @@ const handleCreateOrderOnChain = async() => {
     // 准备合约参数
     const currentRank = getCurrentRank();
     const totalAmount = parseEther(price.toString()); // 将 ETH 转换为 wei
+    const partialAmount = totalAmount * 15n / 100n;
     const deadline = Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60); // 7天后的时间戳
     const gameType = selectedGame;
     const gameMode = playerInfo.leagueEntries[selectedIdx].queueType;
@@ -225,6 +262,7 @@ const handleCreateOrderOnChain = async() => {
 
     setMessage("Simulating transaction...");
 
+    const currentChain = await getCurrentChain();
     // 模拟合约调用
     const { request } = await publicClient.simulateContract({
       address: contractAddr as `0x${string}`,
@@ -238,8 +276,11 @@ const handleCreateOrderOnChain = async() => {
         requirements    // string memory _requirements
       ],
       account: address,
-      value: totalAmount // 发送对应的 ETH
+      value: partialAmount, // 发送对应的 ETH
+      chain: currentChain
     });
+  
+  console.log('模拟成功，可以继续执行交易');
 
     setMessage("Sending transaction...");
 
@@ -256,7 +297,8 @@ const handleCreateOrderOnChain = async() => {
         requirements    // string memory _requirements
       ],
       account: address,
-      value: totalAmount // 发送对应的 ETH
+      value: partialAmount, // 发送对应的 ETH
+      chain: currentChain
     });
 
     console.log("Transaction hash:", txHash);
