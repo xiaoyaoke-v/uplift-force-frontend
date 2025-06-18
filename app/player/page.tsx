@@ -6,11 +6,13 @@ import { TrophyOutlined, SafetyOutlined, DollarOutlined, RocketOutlined } from '
 import { useUser } from '@/contexts/UserContext';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
-import { getPlayerOrders, submitOrder, getPlayerInfo } from '@/apis';
-import type { IPlayerInfo, IPlayerAccount } from '@/apis';
+import { getPlayerOrders, submitOrder, getPlayerInfo, createOrder } from '@/apis';
+import type { IPlayerInfo, IPlayerAccount, ICreateOrderParam } from '@/apis';
 import GameCard from '@/components/ui/GameCard';
 import PromoCard from '@/components/ui/PromoCard';
 import type { Game } from '@/types';
+import { parseEther, parseAbi, createPublicClient, createWalletClient, custom } from "viem"
+import { useAccount, useSignMessage } from "wagmi"
 
 const { Option } = Select;
 
@@ -71,10 +73,11 @@ export default function PlayerDashboard() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const { isConnected, address } = useAccount()
   
   // 表单相关状态
   const [selectedGame, setSelectedGame] = useState<string>('League of Legends');
-  const [selectedRegion, setSelectedRegion] = useState<string>(''); // 默认为空
+  const [selectedRegion, setSelectedRegion] = useState<string>(''); 
   const [riotId, setRiotId] = useState('');
   const [searchLoading, setSearchLoading] = useState(false);
   const [playerInfo, setPlayerInfo] = useState<IPlayerAccount | null>(null);
@@ -85,6 +88,23 @@ export default function PlayerDashboard() {
   const [extraInfo, setExtraInfo] = useState('');
   const [price, setPrice] = useState<number | null>(null);
   const [placingOrder, setPlacingOrder] = useState(false);
+  const [message, setMessage] = useState<string>("")
+  const [publicClient, setPublicClient] = useState<any>(null)
+  const [walletClient, setWalletClient] = useState<any>(null)
+
+  // 初始化客户端
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.ethereum) {
+      const publicClient = createPublicClient({
+        transport: custom(window.ethereum)
+      });
+      const walletClient = createWalletClient({
+        transport: custom(window.ethereum)
+      });
+      setPublicClient(publicClient);
+      setWalletClient(walletClient);
+    }
+  }, []);
 
   useEffect(() => {
     if (!user) {
@@ -148,6 +168,167 @@ export default function PlayerDashboard() {
       setPrice(null);
     }
   };
+
+const handleCreateOrderOnChain = async() => {
+  if (!playerInfo || selectedIdx === null || !targetRank || !price || !publicClient || !walletClient) {
+    console.error("Missing required order information or clients not initialized");
+    setMessage("Missing required information or wallet not connected");
+    return;
+  }
+
+  setPlacingOrder(true);
+  setMessage("Preparing transaction...");
+
+  try {
+    const contractAddr = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS;
+    const contractAbiRaw = process.env.NEXT_PUBLIC_CONTRACT_ABI || "";
+
+    let contractAbi;
+    try {
+      contractAbi = parseAbi([contractAbiRaw]);
+      console.log("Parsed ABI:", contractAbi);
+    } catch (error) {
+      console.error("Error parsing ABI:", error);
+      setMessage("Invalid ABI JSON format");
+      setPlacingOrder(false);
+      return;
+    }
+
+    if (!contractAddr || !contractAbi) {
+      console.error("Contract address or ABI is not defined");
+      setMessage("Contract configuration error");
+      setPlacingOrder(false);
+      return;
+    }
+
+    // 准备合约参数
+    const currentRank = getCurrentRank();
+    const totalAmount = parseEther(price.toString()); // 将 ETH 转换为 wei
+    const deadline = Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60); // 7天后的时间戳
+    const gameType = selectedGame;
+    const gameMode = playerInfo.leagueEntries[selectedIdx].queueType;
+    const requirements = JSON.stringify({
+      riotId,
+      region: selectedRegion,
+      currentRank,
+      targetRank,
+      extraInfo: extraInfo || "No additional requirements"
+    });
+
+    console.log("Contract call parameters:", {
+      totalAmount: totalAmount.toString(),
+      deadline,
+      gameType,
+      gameMode,
+      requirements
+    });
+
+    setMessage("Simulating transaction...");
+
+    // 模拟合约调用
+    const { request } = await publicClient.simulateContract({
+      address: contractAddr as `0x${string}`,
+      abi: contractAbi,
+      functionName: 'createOrder',
+      args: [
+        totalAmount,    // uint256 _totalAmount
+        deadline,       // uint256 _deadline  
+        gameType,       // string memory _gameType
+        gameMode,       // string memory _gameMode
+        requirements    // string memory _requirements
+      ],
+      account: address,
+      value: totalAmount // 发送对应的 ETH
+    });
+
+    setMessage("Sending transaction...");
+
+    // 执行合约调用
+    const txHash = await walletClient.writeContract({
+      address: contractAddr as `0x${string}`,
+      abi: contractAbi,
+      functionName: 'createOrder',
+      args: [
+        totalAmount,    // uint256 _totalAmount
+        deadline,       // uint256 _deadline
+        gameType,       // string memory _gameType  
+        gameMode,       // string memory _gameMode
+        requirements    // string memory _requirements
+      ],
+      account: address,
+      value: totalAmount // 发送对应的 ETH
+    });
+
+    console.log("Transaction hash:", txHash);
+    setMessage(`Transaction sent: ${txHash}. Waiting for confirmation...`);
+
+    // 等待交易确认
+    const receipt = await publicClient.waitForTransactionReceipt({
+      hash: txHash,
+      confirmations: 1 // 等待1个确认
+    });
+
+    console.log("Transaction receipt:", receipt);
+
+    if (receipt.status === 'success') {
+      setMessage("Transaction confirmed! Creating order record...");
+      
+      // 准备后端订单数据
+      const orderData: ICreateOrderParam = {
+        game_type: selectedGame,
+        server_region: selectedRegion,
+        game_account: riotId,
+        game_mode: gameMode,
+        service_type: selectedService,
+        current_rank: currentRank || '',
+        target_rank: targetRank,
+        PUUID: playerInfo.summoner.puuid || '',
+        requirements: extraInfo || undefined,
+        total_amount: price.toString(),
+        deadline: deadline.toString(),
+        tx_hash: txHash
+      };
+
+      console.log("Creating order with data:", orderData);
+
+      try {
+        // 调用后端创建订单
+        await createOrder(orderData);
+        setMessage("Order created successfully!");
+        
+        // 刷新订单列表
+        await fetchOrders();
+        
+        // 成功后关闭弹窗并重置状态
+        setTimeout(() => {
+          setIsModalOpen(false);
+          setRiotId('');
+          setPlayerInfo(null);
+          setSelectedIdx(null);
+          setTargetRank(null);
+          setExtraInfo('');
+          setPrice(null);
+          setPlayerError('');
+          setSelectedRegion('');
+          setMessage('');
+        }, 3000);
+
+      } catch (backendError) {
+        console.error("Backend order creation failed:", backendError);
+        setMessage(`Order record creation failed: ${backendError.message || 'Unknown error'}`);
+      }
+
+    } else {
+      setMessage("Transaction failed. Please try again.");
+    }
+
+  } catch(error) {
+    console.error("Error creating order on chain:", error);
+    setMessage(`Error: ${error.message || 'Failed to create order'}`);
+  } finally {
+    setPlacingOrder(false);
+  }
+};
 
   const calculatePrice = () => {
     if (!targetRank || selectedIdx === null || !playerInfo) return;
@@ -316,6 +497,7 @@ export default function PlayerDashboard() {
               setPrice(null);
               setPlayerError('');
               setSelectedRegion('');
+              setMessage('');
             }}
             footer={null}
             centered
@@ -510,9 +692,6 @@ export default function PlayerDashboard() {
                       >
                         <span className="relative z-10">PLAY WITH</span>
                         <div className="absolute inset-0 bg-red-900/20"></div>
-                        {/* <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-xs text-red-400 font-mono">
-                          [LOCKED]
-                        </div> */}
                       </button>
                     </div>
                   </div>
@@ -581,12 +760,20 @@ export default function PlayerDashboard() {
                       <div className="text-4xl font-bold bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent mb-6 tracking-wider">
                         {price} ETH
                       </div>
+                      {/* 显示消息 */}
+                      {message && (
+                        <div className="mb-4 p-3 rounded-lg bg-blue-900/20 border border-blue-500/30">
+                          <div className="text-blue-300 text-sm font-mono">{message}</div>
+                        </div>
+                      )}
                       <button
-                        onClick={handlePlaceOrder}
-                        disabled={placingOrder}
+                        onClick={handleCreateOrderOnChain} 
+                        disabled={placingOrder || !isConnected} // 钱包连接检查
                         className="w-full py-4 bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 text-white font-bold text-xl rounded-xl hover:from-red-600 hover:via-pink-600 hover:to-purple-600 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-500/40 tracking-wider"
                       >
-                        {placingOrder ? 'INITIALIZING PROTOCOL...' : '⚡ EXECUTE BOOST PROTOCOL ⚡'}
+                        {placingOrder ? 'INITIALIZING PROTOCOL...' : 
+                         !isConnected ? 'CONNECT WALLET FIRST' : 
+                         '⚡ EXECUTE BOOST PROTOCOL ⚡'}
                       </button>
                     </div>
                   </div>

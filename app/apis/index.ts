@@ -100,6 +100,21 @@ interface IPlayerAccount {
     summoner: ISummoner
 }
 
+interface ICreateOrderParam {
+  game_type: string;
+  server_region: string;
+  game_account: string;
+  game_mode: string;
+  service_type: string;
+  current_rank: string; 
+  target_rank: string;
+  PUUID: string;
+  requirements?: string;
+  total_amount: string;
+  deadline: string;
+  tx_hash: string;
+}
+
 export const check = (data: IAddress): Promise<IRegisterStatus> => {
     return post('/auth/checkWallet', {data})
 }
@@ -151,5 +166,9 @@ export const acceptOrder = (data: IAcceptOrderParams): Promise<Order> => {
 export const getPlayerInfo = ({characterName, tagLine}: IPlayerInfo): Promise<IPlayerAccount> => {
     return get('/riot/getWithRank', { params: {characterName, tagLine} });
 }
+
+export const createOrder = (data: ICreateOrderParam): Promise<null> => {
+  return post('/orders', { data });
+};
 
 export type { IPlayerInfo, IPlayerAccount };
