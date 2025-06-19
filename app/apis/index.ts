@@ -115,6 +115,69 @@ interface ICreateOrderParam {
   tx_hash: string;
 }
 
+interface IOrder {
+  id: number;
+  order_no: string;
+  player_id: number;
+  booster_id?: number;
+  chain_order_id?: number;
+  game_type: string;
+  server_region: string;
+  game_account: string;
+  game_mode: 'RANKED_SOLO_5x5' | 'RANKED_FLEX_SR';
+  service_type: 'Boosting' | 'PLAY WITH';
+  current_rank?: string;
+  target_rank?: string;
+  PUUID?: string;
+  requirements?: string;
+  total_amount: string;
+  player_deposit: string;
+  remaining_amount: string;
+  booster_deposit?: string;
+  status: 'posted' | 'accepted' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'failed';
+  contract_address?: string;
+  deadline: string;
+  deposit_tx_hash?: string;
+  booster_deposit_tx_hash?: string;
+  payment_tx_hash?: string;
+  settlement_tx_hash?: string;
+  posted_at: string;
+  accepted_at?: string;
+  confirmed_at?: string;
+  completed_at?: string;
+  cancelled_at?: string;
+  created_at: string;
+  updated_at: string;
+  // 扩展字段（从后端返回）
+  my_role?: 'player' | 'booster';
+  player_username?: string;
+  booster_username?: string;
+}
+
+// 注意：返回的数据结构是 { code, message, data }，而不是我之前假设的 { success, data }
+interface IApiResponse<T> {
+  code: number;
+  message: string;
+  data: T;
+}
+
+interface IOrdersResponse {
+  orders: IOrder[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+interface IOrdersParams {
+  page?: number;
+  page_size?: number;
+  status?: string;
+  game_type?: string;
+  game_mode?: string;
+  role?: string;
+  user_filter?: string;
+}
+
 export const check = (data: IAddress): Promise<IRegisterStatus> => {
     return post('/auth/checkWallet', {data})
 }
@@ -171,4 +234,30 @@ export const createOrder = (data: ICreateOrderParam): Promise<null> => {
   return post('/orders', { data });
 };
 
-export type { IPlayerInfo, IPlayerAccount };
+export const getMyOrders = (params: IOrdersParams): Promise<IApiResponse<IOrdersResponse>> => {
+  const queryString = new URLSearchParams(
+    Object.entries(params).reduce((acc, [key, value]) => {
+      if (value !== undefined && value !== '') {
+        acc[key] = String(value);
+      }
+      return acc;
+    }, {} as Record<string, string>)
+  ).toString();
+  
+  return get(`/orders/my${queryString ? `?${queryString}` : ''}`);
+}
+
+export const getAllOrders = (params: IOrdersParams): Promise<IApiResponse<IOrdersResponse>> => {
+  const queryString = new URLSearchParams(
+    Object.entries(params).reduce((acc, [key, value]) => {
+      if (value !== undefined && value !== '') {
+        acc[key] = String(value);
+      }
+      return acc;
+    }, {} as Record<string, string>)
+  ).toString();
+  
+  return get(`/orders${queryString ? `?${queryString}` : ''}`);
+}
+
+export type { IPlayerInfo, IPlayerAccount, ICreateOrderParam, IOrder, IOrdersResponse, IOrdersParams, IApiResponse };

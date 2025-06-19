@@ -8,7 +8,12 @@ export default function Header() {
     >
       <div className="flex items-center">
         <span className="text-2xl font-extrabold tracking-wide flex items-center bg-gradient-to-r from-[#6ee7b7] via-[#3b82f6] to-[#9333ea] bg-clip-text text-transparent">
-          <span className="mr-2">🚀</span>Uplift Force
+          <img 
+            src="/favicon.png"
+            alt="Uplift Force Logo"
+            className="mr-2 w-8 h-8 object-contain" 
+          />
+          Uplift Force
         </span>
       </div>
       <div className="transform transition-all duration-300 hover:scale-[1.05]">
@@ -16,4 +21,4 @@ export default function Header() {
       </div>
     </header>
   );
-} 
+}

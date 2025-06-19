@@ -6,6 +6,7 @@ import { TrophyOutlined, SafetyOutlined, DollarOutlined, RocketOutlined } from '
 import { useUser } from '@/contexts/UserContext';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
+import Sidebar from "@/components/Sidebar";
 import { getPlayerOrders, submitOrder, getPlayerInfo, createOrder, ICreateOrderParam } from '@/apis';
 import type { IPlayerInfo, IPlayerAccount } from '@/apis';
 import GameCard from '@/components/ui/GameCard';
@@ -83,6 +84,7 @@ export default function PlayerDashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { isConnected, address } = useAccount()
   
+  
   // 表单相关状态
   const [selectedGame, setSelectedGame] = useState<string>('League of Legends');
   const [selectedRegion, setSelectedRegion] = useState<string>(''); 
@@ -99,6 +101,10 @@ export default function PlayerDashboard() {
   const [message, setMessage] = useState<string>("")
   const [publicClient, setPublicClient] = useState<any>(null)
   const [walletClient, setWalletClient] = useState<any>(null)
+  
+  // 新增：截止日期相关状态
+  const [selectedDate, setSelectedDate] = useState<string>('');
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   // 初始化客户端
   useEffect(() => {
@@ -205,8 +211,35 @@ const getCurrentChain = async () => {
     }
   };
 
+  // 新增：将日期转换为Unix时间戳的函数
+  const getDeadlineTimestamp = (dateString: string) => {
+    if (!dateString) return null;
+    const date = new Date(dateString);
+    date.setHours(23, 59, 59, 999); // 设置为当天的23:59:59
+    return Math.floor(date.getTime() / 1000); // 转换为秒级时间戳
+  };
+
+  // 新增：生成可选日期选项（从明天开始的30天）
+  const getDateOptions = () => {
+    const options = [];
+    const today = new Date();
+    for (let i = 1; i <= 30; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
+      const dateString = date.toISOString().split('T')[0];
+      const displayString = date.toLocaleDateString('en-US', { 
+        weekday: 'short', 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric' 
+      });
+      options.push({ value: dateString, label: displayString });
+    }
+    return options;
+  };
+
 const handleCreateOrderOnChain = async() => {
-  if (!playerInfo || selectedIdx === null || !targetRank || !price || !publicClient || !walletClient) {
+  if (!playerInfo || selectedIdx === null || !targetRank || !price || !publicClient || !walletClient || !selectedDate) {
     console.error("Missing required order information or clients not initialized");
     setMessage("Missing required information or wallet not connected");
     return;
@@ -241,16 +274,10 @@ const handleCreateOrderOnChain = async() => {
     const currentRank = getCurrentRank();
     const totalAmount = parseEther(price.toString()); // 将 ETH 转换为 wei
     const partialAmount = totalAmount * 15n / 100n;
-    const deadline = Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60); // 7天后的时间戳
+    const deadline = getDeadlineTimestamp(selectedDate); // 使用用户选择的日期
     const gameType = selectedGame;
     const gameMode = playerInfo.leagueEntries[selectedIdx].queueType;
-    const requirements = JSON.stringify({
-      riotId,
-      region: selectedRegion,
-      currentRank,
-      targetRank,
-      extraInfo: extraInfo || "No additional requirements"
-    });
+    const requirements = extraInfo || "No additional requirements"; // 直接使用用户输入
 
     console.log("Contract call parameters:", {
       totalAmount: totalAmount.toString(),
@@ -341,7 +368,7 @@ const handleCreateOrderOnChain = async() => {
         // 刷新订单列表
         await fetchOrders();
         
-        // 成功后关闭弹窗并重置状态
+        // 成功后关闭弹窗并重置状态，然后显示成功提示
         setTimeout(() => {
           setIsModalOpen(false);
           setRiotId('');
@@ -352,8 +379,17 @@ const handleCreateOrderOnChain = async() => {
           setPrice(null);
           setPlayerError('');
           setSelectedRegion('');
+          setSelectedDate('');
           setMessage('');
-        }, 3000);
+          
+          // 显示成功提示
+          setShowSuccessModal(true);
+          
+          // 3秒后自动关闭成功提示
+          setTimeout(() => {
+            setShowSuccessModal(false);
+          }, 3000);
+        }, 1500);
 
       } catch (backendError) {
         console.error("Backend order creation failed:", backendError);
@@ -381,29 +417,6 @@ const handleCreateOrderOnChain = async() => {
     const diff = Math.max(0, toIdx - fromIdx);
     const calculatedPrice = diff * 0.002;
     setPrice(calculatedPrice);
-  };
-
-  const handlePlaceOrder = async () => {
-    if (!playerInfo || selectedIdx === null || !targetRank || !price) return;
-    
-    setPlacingOrder(true);
-    try {
-      setTimeout(() => {
-        setPlacingOrder(false);
-        setIsModalOpen(false);
-        setRiotId('');
-        setPlayerInfo(null);
-        setSelectedIdx(null);
-        setTargetRank(null);
-        setExtraInfo('');
-        setPrice(null);
-        setPlayerError('');
-        setSelectedRegion(''); // 重置为空
-      }, 1200);
-    } catch (error) {
-      console.error('Failed to place order:', error);
-      setPlacingOrder(false);
-    }
   };
 
   const getCurrentRank = () => {
@@ -475,6 +488,8 @@ const handleCreateOrderOnChain = async() => {
   return (
     <div className="flex flex-col h-screen">
       <Header />
+      <div className="flex flex-1">
+      <Sidebar role={user.role} />
       <main className="flex-1 flex flex-col items-center bg-gradient-to-br from-[#18181b] via-[#23234a] to-[#0a0a23] px-4 py-8">
         <div className="w-full">
           {/* Promotional Sections */}
@@ -539,6 +554,7 @@ const handleCreateOrderOnChain = async() => {
               setPrice(null);
               setPlayerError('');
               setSelectedRegion('');
+              setSelectedDate('');
               setMessage('');
             }}
             footer={null}
@@ -772,8 +788,36 @@ const handleCreateOrderOnChain = async() => {
                   </div>
                 )}
 
-                {/* 额外信息 */}
+                {/* 截止日期选择 */}
                 {targetRank && (
+                  <div className="relative">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="w-1 h-6 bg-gradient-to-b from-blue-400 to-cyan-500"></div>
+                      <h3 className="text-xl font-bold text-blue-300 tracking-wider">DEADLINE CONFIGURATION</h3>
+                    </div>
+                    <div className="grid grid-cols-5 gap-3">
+                      {getDateOptions().map(option => (
+                        <button
+                          key={option.value}
+                          className={`relative py-4 px-3 rounded-xl border-2 font-bold text-sm transition-all duration-300 ${
+                            selectedDate === option.value
+                              ? 'bg-gradient-to-br from-blue-600/50 to-cyan-600/50 border-cyan-400 text-white shadow-lg shadow-cyan-400/30 transform scale-105'
+                              : 'bg-gray-900/40 border-gray-600/50 text-gray-300 hover:border-cyan-400/70 hover:bg-cyan-900/20 hover:text-cyan-300'
+                          }`}
+                          onClick={() => setSelectedDate(option.value)}
+                        >
+                          {option.label}
+                          {selectedDate === option.value && (
+                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-cyan-400 rounded-full animate-pulse"></div>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 额外信息 */}
+                {selectedDate && (
                   <div className="relative">
                     <div className="flex items-center gap-3 mb-6">
                       <div className="w-1 h-6 bg-gradient-to-b from-purple-400 to-blue-500"></div>
@@ -794,7 +838,7 @@ const handleCreateOrderOnChain = async() => {
                 )}
 
                 {/* 价格显示和下单 */}
-                {price !== null && (
+                {price !== null && selectedDate && (
                   <div className="relative bg-gradient-to-br from-gray-900/80 to-purple-900/40 border-2 border-purple-500/50 rounded-xl p-8">
                     <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500"></div>
                     <div className="text-center">
@@ -820,6 +864,50 @@ const handleCreateOrderOnChain = async() => {
                     </div>
                   </div>
                 )}
+              </div>
+            </div>
+          </Modal>
+
+          {/* 成功提示模态框 */}
+          <Modal
+            open={showSuccessModal}
+            onCancel={() => setShowSuccessModal(false)}
+            footer={null}
+            centered
+            width={600}
+            className="success-modal"
+            maskStyle={{ 
+              backgroundColor: 'rgba(0, 0, 0, 0.9)',
+              backdropFilter: 'blur(12px)'
+            }}
+          >
+            <div className="relative overflow-hidden bg-gradient-to-br from-green-900/90 via-emerald-900/90 to-teal-900/90 rounded-2xl p-8">
+              {/* 成功动画背景 */}
+              <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 via-emerald-500/10 to-teal-500/10"></div>
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-400 via-emerald-400 to-teal-400"></div>
+              
+              {/* 成功图标 */}
+              <div className="relative text-center">
+                <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-green-500/30 to-emerald-500/30 rounded-full border-4 border-green-400/50 mb-6 animate-pulse">
+                  <svg className="w-10 h-10 text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path>
+                  </svg>
+                </div>
+                
+                <h2 className="text-3xl font-bold text-center bg-gradient-to-r from-green-300 via-emerald-300 to-teal-300 bg-clip-text text-transparent tracking-wider mb-4">
+                  ✨ BOOST PROTOCOL ACTIVATED ✨
+                </h2>
+                
+                <div className="text-green-200/80 text-lg mb-6 font-mono tracking-wider">
+                  Order created successfully!<br />
+                  Your boost request has been submitted to the network.
+                </div>
+                
+                <div className="flex items-center justify-center gap-2 text-emerald-300/70 text-sm font-mono">
+                  <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+                  <span>Awaiting booster assignment...</span>
+                  <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse delay-500"></div>
+                </div>
               </div>
             </div>
           </Modal>
@@ -868,9 +956,44 @@ const handleCreateOrderOnChain = async() => {
             textarea::-webkit-scrollbar {
               display: none !important;
             }
+
+            /* 成功提示模态框样式 */
+            .success-modal .ant-modal-content {
+              background: transparent !important;
+              border-radius: 16px !important;
+              overflow: hidden !important;
+              box-shadow: 0 0 50px rgba(16, 185, 129, 0.4) !important;
+              border: none !important;
+              padding: 0 !important;
+            }
+            .success-modal .ant-modal-header {
+              display: none !important;
+            }
+            .success-modal .ant-modal-close {
+              color: #10b981 !important;
+              font-size: 20px !important;
+              top: 16px !important;
+              right: 16px !important;
+              z-index: 1000 !important;
+              background: rgba(0, 0, 0, 0.3) !important;
+              border-radius: 50% !important;
+              width: 32px !important;
+              height: 32px !important;
+              display: flex !important;
+              align-items: center !important;
+              justify-content: center !important;
+              border: 1px solid rgba(16, 185, 129, 0.3) !important;
+            }
+            .success-modal .ant-modal-close:hover {
+              background: rgba(16, 185, 129, 0.2) !important;
+            }
+            .success-modal .ant-modal-body {
+              padding: 0 !important;
+            }
           `}</style>
         </div>
       </main>
+      </div>
     </div>
   );
 }

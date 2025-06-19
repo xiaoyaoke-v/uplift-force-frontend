@@ -89,44 +89,25 @@ export default function OrdersPage() {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [gameTypeFilter, setGameTypeFilter] = useState<string>('');
 
-  // useEffect(() => {
-  //   if (!user) {
-  //     router.push('/');
-  //     return;
-  //   }
-  //   if (!user.role || (user.role !== 'player' && user.role !== 'booster')) {
-  //     console.error('Invalid user role:', user.role);
-  //     router.push('/');
-  //     return;
-  //   }
+  useEffect(() => {
+    if (!user) {
+      router.push('/');
+      return;
+    }
+    if (!user.role || (user.role !== 'player' && user.role !== 'booster')) {
+      console.error('Invalid user role:', user.role);
+      router.push('/');
+      return;
+    }
     
-  //   // If user is booster, default to 'all' tab
-  //   if (user.role === 'booster') {
-  //     setActiveTab('all');
-  //   }
+    // If user is booster, default to 'all' tab
+    if (user.role === 'booster') {
+      setActiveTab('all');
+    }
     
-  //   fetchOrders();
-  // }, [user, activeTab, myOrdersPage, allOrdersPage, statusFilter, gameTypeFilter]);
-useEffect(() => {
-  if (!user) {
-    router.push('/');
-    return;
-  }
-  if (!user.role || (user.role !== 'player' && user.role !== 'booster')) {
-    console.error('Invalid user role:', user.role);
-    router.push('/');
-    return;
-  }
-  
-  fetchOrders();
-}, [user, activeTab, myOrdersPage, allOrdersPage, statusFilter, gameTypeFilter]);
+    fetchOrders();
+  }, [user, activeTab, myOrdersPage, allOrdersPage, statusFilter, gameTypeFilter]);
 
-// 只在组件初始挂载时设置默认 tab，之后不再干预
-useEffect(() => {
-  if (user && user.role === 'booster') {
-    setActiveTab('all');
-  }
-}, [user?.id]); // 使用 user.id 作为依赖，确保只在用户首次加载时执行一次
   // Get my orders
   const fetchMyOrders = async () => {
     try {
