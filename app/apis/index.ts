@@ -1,4 +1,4 @@
-import { post, get } from '@/utils/request'
+import { post, get, put } from '@/utils/request'
 import { type IUser, type Order } from '@/types'
 
 
@@ -222,9 +222,14 @@ export const submitOrder = (data: ISubmitOrderParams): Promise<Order> => {
     return post('/orders/submit', { data });
 }
 
-export const acceptOrder = (data: IAcceptOrderParams): Promise<Order> => {
-    return post('/orders/accept', { data });
-}
+export const acceptOrder = (orderId: number, txHash: string): Promise<null> => {
+  return post(`/orders/accept`, { 
+    data: {
+      order_id: orderId, 
+      tx_hash: txHash 
+    }
+  });
+};
 
 export const getPlayerInfo = ({characterName, tagLine}: IPlayerInfo): Promise<IPlayerAccount> => {
     return get('/riot/getWithRank', { params: {characterName, tagLine} });
@@ -233,6 +238,7 @@ export const getPlayerInfo = ({characterName, tagLine}: IPlayerInfo): Promise<IP
 export const createOrder = (data: ICreateOrderParam): Promise<null> => {
   return post('/orders', { data });
 };
+
 
 export const getMyOrders = (params: IOrdersParams): Promise<IApiResponse<IOrdersResponse>> => {
   const queryString = new URLSearchParams(
@@ -259,5 +265,35 @@ export const getAllOrders = (params: IOrdersParams): Promise<IApiResponse<IOrder
   
   return get(`/orders${queryString ? `?${queryString}` : ''}`);
 }
+
+export const confirmOrder = (orderId: number, txHash: string): Promise<any> => {
+  return post(`/orders/confirm`, { 
+    data: {
+      order_id: orderId, 
+      tx_hash: txHash
+    }
+  });
+};
+
+export const completeOrder = (orderId: number, note?: string, txHash?: string, completionStatus?: string): Promise<any> => {
+  return post(`/orders/complete`, { 
+    data: {
+      order_id: orderId,
+      note: note || "",
+      tx_hash: txHash || "",
+      completion_status: completionStatus || ""
+    }
+  });
+};
+
+export const cancelOrder = (orderId: number, reason?: string, txHash?: string): Promise<any> => {
+  return post(`/orders/cancel`, { 
+    data: {
+      order_id: orderId,
+      reason: reason || "",
+      tx_hash: txHash || ""
+    }
+  });
+};
 
 export type { IPlayerInfo, IPlayerAccount, ICreateOrderParam, IOrder, IOrdersResponse, IOrdersParams, IApiResponse };

@@ -874,43 +874,347 @@ const handleCreateOrderOnChain = async() => {
             onCancel={() => setShowSuccessModal(false)}
             footer={null}
             centered
-            width={600}
-            className="success-modal"
-            maskStyle={{ 
-              backgroundColor: 'rgba(0, 0, 0, 0.9)',
-              backdropFilter: 'blur(12px)'
+            mask={true}
+            maskStyle={{
+              background: 'rgba(0, 0, 0, 0.8)',
+              backdropFilter: 'blur(8px)',
+            }}
+            style={{
+              top: 0,
             }}
           >
-            <div className="relative overflow-hidden bg-gradient-to-br from-green-900/90 via-emerald-900/90 to-teal-900/90 rounded-2xl p-8">
-              {/* 成功动画背景 */}
-              <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 via-emerald-500/10 to-teal-500/10"></div>
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-400 via-emerald-400 to-teal-400"></div>
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(30, 30, 63, 0.95) 0%, rgba(42, 42, 94, 0.95) 100%)',
+              border: '2px solid',
+              borderImage: 'linear-gradient(45deg, #00ffff, #ff00ff) 1',
+              borderRadius: '20px',
+              padding: '40px',
+              textAlign: 'center',
+              position: 'relative',
+              overflow: 'hidden',
+              boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5)',
+            }}>
+              {/* 背景动画效果 */}
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'radial-gradient(circle at 50% 50%, rgba(0, 255, 255, 0.1) 0%, transparent 70%)',
+                animation: 'cyberpulse 2s infinite',
+                zIndex: -1,
+              }}></div>
               
-              {/* 成功图标 */}
-              <div className="relative text-center">
-                <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-green-500/30 to-emerald-500/30 rounded-full border-4 border-green-400/50 mb-6 animate-pulse">
-                  <svg className="w-10 h-10 text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path>
-                  </svg>
-                </div>
-                
-                <h2 className="text-3xl font-bold text-center bg-gradient-to-r from-green-300 via-emerald-300 to-teal-300 bg-clip-text text-transparent tracking-wider mb-4">
-                  ✨ BOOST PROTOCOL ACTIVATED ✨
-                </h2>
-                
-                <div className="text-green-200/80 text-lg mb-6 font-mono tracking-wider">
-                  Order created successfully!<br />
-                  Your boost request has been submitted to the network.
-                </div>
-                
-                <div className="flex items-center justify-center gap-2 text-emerald-300/70 text-sm font-mono">
-                  <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
-                  <span>Awaiting booster assignment...</span>
-                  <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse delay-500"></div>
-                </div>
+              {/* 顶部霓虹线条 */}
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: '3px',
+                background: 'linear-gradient(90deg, #00ffff, #ff00ff, #00ff88, #00ffff)',
+                backgroundSize: '300% 100%',
+                animation: 'neonFlow 3s linear infinite',
+              }}></div>
+              
+              {/* 创建成功图标 */}
+              <div style={{
+                width: '80px',
+                height: '80px',
+                margin: '0 auto 20px',
+                background: 'linear-gradient(45deg, #00ffff, #ff00ff)',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '36px',
+                color: '#000',
+                fontWeight: 'bold',
+                animation: 'spinBounce 1.5s ease-out',
+                boxShadow: '0 10px 30px rgba(0, 255, 255, 0.3), 0 0 20px rgba(255, 0, 255, 0.2)',
+              }}>
+                ⚡
               </div>
+              
+              {/* 主标题 */}
+              <div style={{
+                fontSize: '28px',
+                fontWeight: 'bold',
+                background: 'linear-gradient(45deg, #00ffff, #ff00ff)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+                marginBottom: '8px',
+                textTransform: 'uppercase',
+                letterSpacing: '2px',
+                animation: 'textGlow 2s ease-in-out infinite alternate',
+              }}>
+                BOOST PROTOCOL
+              </div>
+              
+              {/* 副标题 */}
+              <div style={{
+                fontSize: '18px',
+                fontWeight: 'bold',
+                background: 'linear-gradient(45deg, #00ff88, #00ffff)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+                marginBottom: '20px',
+                textTransform: 'uppercase',
+                letterSpacing: '1px',
+              }}>
+                ACTIVATED ✨
+              </div>
+              
+              {/* 描述文字 */}
+              <div style={{
+                color: 'rgba(255, 255, 255, 0.9)',
+                fontSize: '16px',
+                lineHeight: '1.6',
+                marginBottom: '24px',
+                fontFamily: 'monospace',
+              }}>
+                Order created successfully!<br />
+                <span style={{ color: '#00ffff' }}>Your boost request has been submitted to the network.</span>
+              </div>
+              
+              {/* 状态指示器 */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '12px',
+                color: '#00ff88',
+                fontSize: '14px',
+                fontFamily: 'monospace',
+                marginBottom: '20px',
+              }}>
+                <div style={{
+                  width: '8px',
+                  height: '8px',
+                  background: '#00ff88',
+                  borderRadius: '50%',
+                  animation: 'statusPulse 1.5s infinite',
+                }}></div>
+                <span>Awaiting booster assignment...</span>
+                <div style={{
+                  width: '8px',
+                  height: '8px',
+                  background: '#00ff88',
+                  borderRadius: '50%',
+                  animation: 'statusPulse 1.5s infinite 0.5s',
+                }}></div>
+              </div>
+              
+              {/* 装饰性进度条 */}
+              <div style={{
+                width: '100%',
+                height: '4px',
+                background: 'rgba(255, 255, 255, 0.1)',
+                borderRadius: '2px',
+                overflow: 'hidden',
+                marginBottom: '20px',
+              }}>
+                <div style={{
+                  width: '30%',
+                  height: '100%',
+                  background: 'linear-gradient(90deg, #00ffff, #ff00ff)',
+                  borderRadius: '2px',
+                  animation: 'progressGlow 2s ease-in-out infinite',
+                }}></div>
+              </div>
+              
+              {/* 装饰性元素 */}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'center',
+                gap: '15px',
+                opacity: 0.7,
+              }}>
+                <div style={{
+                  width: '10px',
+                  height: '10px',
+                  background: '#00ffff',
+                  borderRadius: '50%',
+                  animation: 'orbitTwinkle 2s infinite',
+                }}></div>
+                <div style={{
+                  width: '6px',
+                  height: '6px',
+                  background: '#ff00ff',
+                  borderRadius: '50%',
+                  animation: 'orbitTwinkle 2s infinite 0.6s',
+                }}></div>
+                <div style={{
+                  width: '8px',
+                  height: '8px',
+                  background: '#00ff88',
+                  borderRadius: '50%',
+                  animation: 'orbitTwinkle 2s infinite 1.2s',
+                }}></div>
+              </div>
+              
+              {/* 边角装饰 */}
+              <div style={{
+                position: 'absolute',
+                top: '15px',
+                left: '15px',
+                width: '20px',
+                height: '20px',
+                border: '2px solid #00ffff',
+                borderRight: 'none',
+                borderBottom: 'none',
+                opacity: 0.6,
+              }}></div>
+              <div style={{
+                position: 'absolute',
+                top: '15px',
+                right: '15px',
+                width: '20px',
+                height: '20px',
+                border: '2px solid #ff00ff',
+                borderLeft: 'none',
+                borderBottom: 'none',
+                opacity: 0.6,
+              }}></div>
+              <div style={{
+                position: 'absolute',
+                bottom: '15px',
+                left: '15px',
+                width: '20px',
+                height: '20px',
+                border: '2px solid #00ff88',
+                borderRight: 'none',
+                borderTop: 'none',
+                opacity: 0.6,
+              }}></div>
+              <div style={{
+                position: 'absolute',
+                bottom: '15px',
+                right: '15px',
+                width: '20px',
+                height: '20px',
+                border: '2px solid #ffff00',
+                borderLeft: 'none',
+                borderTop: 'none',
+                opacity: 0.6,
+              }}></div>
             </div>
           </Modal>
+
+          <style jsx global>{`
+            /* 隐藏 Modal 的默认样式 */
+            .ant-modal {
+              background: transparent !important;
+            }
+            
+            .ant-modal-content {
+              background: transparent !important;
+              border: none !important;
+              box-shadow: none !important;
+              padding: 0 !important;
+            }
+            
+            .ant-modal-body {
+              padding: 0 !important;
+            }
+            
+            .ant-modal-close {
+              color: #00ffff !important;
+              font-size: 18px !important;
+              top: 10px !important;
+              right: 10px !important;
+              z-index: 1000 !important;
+              background: rgba(0, 0, 0, 0.5) !important;
+              border-radius: 50% !important;
+              width: 32px !important;
+              height: 32px !important;
+              display: flex !important;
+              align-items: center !important;
+              justify-content: center !important;
+              border: 1px solid rgba(0, 255, 255, 0.3) !important;
+              transition: all 0.3s ease !important;
+            }
+            
+            .ant-modal-close:hover {
+              background: rgba(0, 255, 255, 0.2) !important;
+              transform: scale(1.1) !important;
+            }
+
+            /* 动画效果 */
+            @keyframes cyberpulse {
+              0%, 100% { 
+                opacity: 0.5; 
+                transform: scale(1) rotate(0deg); 
+              }
+              50% { 
+                opacity: 0.8; 
+                transform: scale(1.05) rotate(180deg); 
+              }
+            }
+            
+            @keyframes neonFlow {
+              0% { background-position: 0% 50%; }
+              100% { background-position: 300% 50%; }
+            }
+            
+            @keyframes spinBounce {
+              0% { 
+                transform: scale(0.3) rotate(0deg); 
+                opacity: 0;
+              }
+              50% { 
+                transform: scale(1.2) rotate(180deg); 
+                opacity: 1;
+              }
+              100% { 
+                transform: scale(1) rotate(360deg); 
+                opacity: 1;
+              }
+            }
+            
+            @keyframes textGlow {
+              0% { 
+                filter: drop-shadow(0 0 5px #00ffff); 
+              }
+              100% { 
+                filter: drop-shadow(0 0 15px #ff00ff) drop-shadow(0 0 25px #00ffff); 
+              }
+            }
+            
+            @keyframes statusPulse {
+              0%, 100% { 
+                opacity: 0.3; 
+                transform: scale(1); 
+              }
+              50% { 
+                opacity: 1; 
+                transform: scale(1.3); 
+              }
+            }
+            
+            @keyframes progressGlow {
+              0%, 100% { 
+                box-shadow: 0 0 10px rgba(0, 255, 255, 0.5); 
+              }
+              50% { 
+                box-shadow: 0 0 20px rgba(255, 0, 255, 0.8), 0 0 30px rgba(0, 255, 255, 0.6); 
+              }
+            }
+            
+            @keyframes orbitTwinkle {
+              0%, 100% { 
+                opacity: 0.3; 
+                transform: scale(1) translateY(0px); 
+              }
+              50% { 
+                opacity: 1; 
+                transform: scale(1.5) translateY(-5px); 
+              }
+            }
+          `}</style>
 
           <style jsx global>{`
             /* 去掉Modal的黑框 */
