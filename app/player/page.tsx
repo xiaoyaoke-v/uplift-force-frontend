@@ -488,10 +488,9 @@ const handleCreateOrderOnChain = async() => {
   return (
     <div className="flex flex-col h-screen">
       <Header />
-      <div className="flex flex-1">
-      <Sidebar role={user.role} />
-      <main className="flex-1 flex flex-col items-center bg-gradient-to-br from-[#18181b] via-[#23234a] to-[#0a0a23] px-4 py-8">
-        <div className="w-full">
+      <Sidebar role={user.role as "player" | "booster"} />
+      <main className="ml-52 flex-1 flex flex-col items-center bg-gradient-to-br from-[#18181b] via-[#23234a] to-[#0a0a23] px-4 py-8">
+      <div className="w-full max-w-none"> {/* 移除宽度限制 */}
           {/* Promotional Sections */}
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-8">
@@ -1297,7 +1296,6 @@ const handleCreateOrderOnChain = async() => {
           `}</style>
         </div>
       </main>
-      </div>
     </div>
   );
 }

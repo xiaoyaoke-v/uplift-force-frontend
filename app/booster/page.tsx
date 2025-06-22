@@ -72,7 +72,7 @@ const GAME_MODES = {
 };
 
 export default function OrdersPage() {
-  const { user } = useUser();
+  const { user, isLoading, isAuthenticated } = useUser();
   const router = useRouter();
   
   // State management
@@ -1488,21 +1488,28 @@ const handleCompleteOrder = async (order: any) => {
       `}</style>
       
       <Header />
-      <div style={{ display: 'flex' }}>
         <Sidebar role={user.role as "player" | "booster"} />
-        <div style={{ flex: 1, padding: '24px' }}>
-          <div
-            style={{
-              background: 'linear-gradient(135deg, #1e1e3f 0%, #2a2a5e 100%)',
-              border: '2px solid',
-              borderImage: 'linear-gradient(45deg, #00ffff, #ff00ff) 1',
-              borderRadius: '15px',
-              padding: '30px',
-              maxWidth: '1200px',
-              margin: '0 auto',
-              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)',
-            }}
-          >
+          <div style={{ 
+            marginLeft: '208px', // 52 * 4 = 208px (w-52 = 208px)
+            padding: '24px',
+            minHeight: 'calc(100vh - 88px)', // 减去 Header 高度
+            width: 'calc(100% - 208px)', // 确保不会溢出
+            boxSizing: 'border-box' // 包含 padding 在宽度计算内
+          }}>
+            <div
+              style={{
+                background: 'linear-gradient(135deg, #1e1e3f 0%, #2a2a5e 100%)',
+                border: '2px solid',
+                borderImage: 'linear-gradient(45deg, #00ffff, #ff00ff) 1',
+                borderRadius: '15px',
+                padding: '30px',
+                maxWidth: '1200px',
+                margin: '0 auto',
+                boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)',
+                width: '100%', // 确保容器占满可用宽度
+                boxSizing: 'border-box'
+              }}
+            >
             {/* Header */}
             <div style={{ textAlign: 'center', marginBottom: '30px' }}>
               <h1 style={{
@@ -1692,7 +1699,7 @@ const handleCompleteOrder = async (order: any) => {
             )}
           </div>
         </div>
-      </div>
+
 
       {/* 取消订单确认模态框 */}
       <Modal

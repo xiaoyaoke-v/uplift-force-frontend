@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { Card, Spin, Space, Tag, Button, Select, Input, Pagination, Modal, message } from 'antd';
-import { TrophyOutlined, EyeOutlined, MessageOutlined, RedoOutlined, StarOutlined, ClockCircleOutlined, CopyOutlined } from '@ant-design/icons';
+import { TrophyOutlined, EyeOutlined, MessageOutlined, RedoOutlined, StarOutlined, ClockCircleOutlined, CopyOutlined, ExclamationCircleOutlined, CloseOutlined } from '@ant-design/icons';
 import { useUser } from '@/contexts/UserContext';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import Sidebar from "@/components/Sidebar";
-import { getMyOrders, getAllOrders, confirmOrder, type IOrder, type IOrdersParams } from '@/apis';
+import { getMyOrders, getAllOrders, confirmOrder, cancelOrder, type IOrder, type IOrdersParams } from '@/apis';
 import { usePublicClient, useWalletClient, useAccount } from 'wagmi';
 import { parseAbi, parseEther, BaseError, ContractFunctionRevertedError } from 'viem';
 
@@ -103,6 +103,9 @@ export default function OrdersPage() {
 
   const [showContactModal, setShowContactModal] = useState(false);
   const [selectedContactOrder, setSelectedContactOrder] = useState(null);
+  const [cancelingOrder, setCancelingOrder] = useState<{ [key: number]: boolean }>({});
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [selectedCancelOrder, setSelectedCancelOrder] = useState<IOrder | null>(null);
 
   useEffect(() => {
     if (!user) {
@@ -362,6 +365,146 @@ const fetchAllOrders = async () => {
       setLoading(false);
     }
   };
+
+  // 3. 添加取消订单处理函数（在其他函数后面添加）
+const handleCancelOrderClick = (order: IOrder) => {
+  setSelectedCancelOrder(order);
+  setShowCancelModal(true);
+};
+
+const handleCancelOrder = async (order: IOrder) => {
+  if (!publicClient || !walletClient || !address) {
+    console.error("Wallet not connected or clients not initialized");
+    message.error("Please connect your wallet first");
+    return;
+  }
+
+  setCancelingOrder(prev => ({ ...prev, [order.id]: true }));
+  setMessageText("Preparing cancellation transaction...");
+
+  try {
+    const contractAddr = process.env.NEXT_PUBLIC_MAIN_CONTRACT_ADDR;
+    const contractAbiRaw = process.env.NEXT_PUBLIC_MAIN_CONTRACT_CANCEL_ORDER_ABI || "";
+
+    let contractAbi;
+    try {
+      contractAbi = parseAbi([contractAbiRaw]);
+      console.log("Parsed Cancel ABI:", contractAbi);
+    } catch (error) {
+      console.error("Error parsing cancel ABI:", error);
+      setMessageText("Invalid cancel ABI JSON format");
+      setCancelingOrder(prev => ({ ...prev, [order.id]: false }));
+      return;
+    }
+
+    if (!contractAddr || !contractAbi) {
+      console.error("Contract address or cancel ABI is not defined");
+      setMessageText("Contract configuration error");
+      setCancelingOrder(prev => ({ ...prev, [order.id]: false }));
+      return;
+    }
+
+    // 使用区块链订单ID
+    const blockchainOrderId = order.blockchain_order_id || order.chain_order_id || order.id;
+
+    console.log("Cancel order parameters:", {
+      databaseOrderId: order.id,
+      blockchainOrderId: blockchainOrderId,
+      orderStatus: order.status
+    });
+
+    setMessageText("Simulating cancellation transaction...");
+
+    const currentChain = await getCurrentChain();
+    
+    // 模拟合约调用
+    try {
+      const { request } = await publicClient.simulateContract({
+        address: contractAddr as `0x${string}`,
+        abi: contractAbi,
+        functionName: 'cancelOrder',
+        args: [BigInt(blockchainOrderId)],
+        account: address,
+        chain: currentChain
+      });
+      console.log('Cancel simulation successful');
+    } catch (err) {
+      if (err instanceof BaseError) {
+        const revertError = err.walk(err => err instanceof ContractFunctionRevertedError)
+        if (revertError instanceof ContractFunctionRevertedError) {
+          const errorName = revertError.data?.errorName ?? ''
+          console.log('Cancel errorName:', errorName)
+        }
+      }
+      setMessageText("Cancellation simulation failed. Please check the order status.");
+      setCancelingOrder(prev => ({ ...prev, [order.id]: false }));
+      return;
+    }
+
+    setMessageText("Sending cancellation transaction...");
+
+    // 执行合约调用
+    const txHash = await walletClient.writeContract({
+      address: contractAddr as `0x${string}`,
+      abi: contractAbi,
+      functionName: 'cancelOrder',
+      args: [BigInt(blockchainOrderId)], 
+      account: address,
+      chain: currentChain
+    });
+
+    console.log("Cancel transaction hash:", txHash);
+    setMessageText(`Cancellation transaction sent: ${txHash}. Waiting for confirmation...`);
+
+    // 等待交易确认
+    const receipt = await publicClient.waitForTransactionReceipt({
+      hash: txHash,
+      confirmations: 1
+    });
+
+    console.log("Cancel transaction receipt:", receipt);
+
+    if (receipt.status === 'success') {
+      setMessageText("Transaction confirmed! Updating order status...");
+      
+      try {
+        // 调用后端取消订单接口
+        await cancelOrder(order.id, "User requested cancellation", txHash); 
+        setMessageText("Order cancelled successfully!");
+        
+        // 刷新订单列表，保持当前筛选条件
+        await refreshOrdersWithCurrentFilters();
+        
+        // 显示成功消息
+        message.success('Order cancelled successfully!');
+        
+        // 关闭模态框
+        setShowCancelModal(false);
+        
+        setTimeout(() => {
+          setMessageText('');
+        }, 2000);
+
+      } catch (backendError) {
+        console.error("Backend cancel order failed:", backendError);
+        setMessageText(`Order cancellation failed: ${backendError.message || 'Unknown error'}`);
+        message.error(`Order cancellation failed: ${backendError.message || 'Unknown error'}`);
+      }
+
+    } else {
+      setMessageText("Cancellation transaction failed. Please try again.");
+      message.error("Cancellation transaction failed. Please try again.");
+    }
+
+  } catch(error) {
+    console.error("Error cancelling order on chain:", error);
+    const errorMessage = `Error: ${error.message || 'Failed to cancel order'}`;
+    setMessageText(errorMessage);
+    message.error(errorMessage);
+  } finally {
+    setCancelingOrder(prev => ({ ...prev, [order.id]: false }));
+  }
+};
 
   const handleContact = (order:any) => {
     setSelectedContactOrder(order);
@@ -661,26 +804,47 @@ const fetchAllOrders = async () => {
         <div style={{ 
           display: 'flex', 
           gap: '8px', 
-          justifyContent: 'flex-end'
+          justifyContent: 'flex-end',
+          flexWrap: 'wrap' // 添加换行支持
         }}>
           {activeTab === 'my' ? (
             <>
-                {order.status === 'in_progress' && (
+              {/* Cancel Order Button for posted and accepted orders */}
+              {(order.status === 'posted' || order.status === 'accepted') && (
                 <Button
-                    size="small"
-                    icon={<MessageOutlined />}
-                    onClick={() => handleContact(order)}
-                    style={{
+                  size="small"
+                  icon={<CloseOutlined />}
+                  onClick={() => handleCancelOrderClick(order)}
+                  disabled={cancelingOrder[order.id]}
+                  style={{
+                    background: 'transparent',
+                    color: '#ff4444',
+                    border: '1px solid #ff4444',
+                    borderRadius: '20px',
+                    fontWeight: 'bold',
+                    opacity: cancelingOrder[order.id] ? 0.7 : 1,
+                  }}
+                >
+                  {cancelingOrder[order.id] ? 'Cancelling...' : 'Cancel Order'}
+                </Button>
+              )}
+
+              {order.status === 'in_progress' && (
+                <Button
+                  size="small"
+                  icon={<MessageOutlined />}
+                  onClick={() => handleContact(order)}
+                  style={{
                     background: 'linear-gradient(45deg, #00ffff, #ff00ff)',
                     color: '#000',
                     border: 'none',
                     borderRadius: '20px',
                     fontWeight: 'bold',
-                    }}
+                  }}
                 >
-                    Contact {user?.role === 'player' ? 'Booster' : 'Client'}
+                  Contact {user?.role === 'player' ? 'Booster' : 'Client'}
                 </Button>
-                )}
+              )}
               
               {order.status === 'completed' && order.my_role === 'player' && (
                 <>
@@ -994,21 +1158,28 @@ const fetchAllOrders = async () => {
       `}</style>
       
       <Header />
-      <div style={{ display: 'flex' }}>
         <Sidebar role={user.role as "player" | "booster"} />
-        <div style={{ flex: 1, padding: '24px' }}>
-          <div
-            style={{
-              background: 'linear-gradient(135deg, #1e1e3f 0%, #2a2a5e 100%)',
-              border: '2px solid',
-              borderImage: 'linear-gradient(45deg, #00ffff, #ff00ff) 1',
-              borderRadius: '15px',
-              padding: '30px',
-              maxWidth: '1200px',
-              margin: '0 auto',
-              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)',
-            }}
-          >
+            <div style={{ 
+                marginLeft: '208px', // 52 * 4 = 208px (w-52 = 208px)
+                padding: '24px',
+                minHeight: 'calc(100vh - 88px)', // 减去 Header 高度
+                width: 'calc(100% - 208px)', // 确保不会溢出
+                boxSizing: 'border-box' // 包含 padding 在宽度计算内
+            }}>
+                <div
+                style={{
+                    background: 'linear-gradient(135deg, #1e1e3f 0%, #2a2a5e 100%)',
+                    border: '2px solid',
+                    borderImage: 'linear-gradient(45deg, #00ffff, #ff00ff) 1',
+                    borderRadius: '15px',
+                    padding: '30px',
+                    maxWidth: '1200px',
+                    margin: '0 auto',
+                    boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)',
+                    width: '100%', // 确保容器占满可用宽度
+                    boxSizing: 'border-box'
+                }}
+                >
             {/* Header */}
             <div style={{ textAlign: 'center', marginBottom: '30px' }}>
               <h1 style={{
@@ -1199,7 +1370,6 @@ const fetchAllOrders = async () => {
             )}
           </div>
         </div>
-      </div>
       
       {/* Custom Cyberpunk Success Modal */}
       {showSuccessModal && (
@@ -1718,6 +1888,253 @@ const fetchAllOrders = async () => {
                 width: '15px',
                 height: '15px',
                 background: '#00ffff',
+                borderRadius: '50%',
+                animation: 'twinkle 3s ease-in-out infinite',
+                opacity: 0.6
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Order Confirmation Modal */}
+      {showCancelModal && selectedCancelOrder && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.8)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 1002,
+            animation: 'fadeIn 0.3s ease-out'
+          }}
+          onClick={() => setShowCancelModal(false)}
+        >
+          <div
+            style={{
+              position: 'relative',
+              background: 'linear-gradient(135deg, #1e1e3f 0%, #2a2a5e 100%)',
+              border: '2px solid #ff4444',
+              borderRadius: '15px',
+              padding: '30px',
+              textAlign: 'center',
+              boxShadow: `
+                0 0 30px rgba(255, 68, 68, 0.3),
+                inset 0 0 30px rgba(255, 68, 68, 0.1)
+              `,
+              animation: 'successPulse 0.4s ease-out',
+              minWidth: '400px',
+              maxWidth: '500px',
+              overflow: 'hidden'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Warning background pattern */}
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundImage: `
+                  linear-gradient(rgba(255, 68, 68, 0.05) 1px, transparent 1px),
+                  linear-gradient(90deg, rgba(255, 68, 68, 0.05) 1px, transparent 1px)
+                `,
+                backgroundSize: '20px 20px',
+                opacity: 0.3
+              }}
+            />
+            
+            {/* Header */}
+            <div style={{ position: 'relative', zIndex: 1, marginBottom: '25px' }}>
+              <div
+                style={{
+                  fontSize: '24px',
+                  fontWeight: 'bold',
+                  color: '#ff4444',
+                  marginBottom: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px'
+                }}
+              >
+                <ExclamationCircleOutlined style={{ color: '#ff4444' }} />
+                Cancel Order Confirmation
+              </div>
+              <div
+                style={{
+                  color: '#00ffff',
+                  fontSize: '12px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '1px',
+                  opacity: 0.8
+                }}
+              >
+                Order #{selectedCancelOrder.order_no}
+              </div>
+            </div>
+
+            {/* Order Info */}
+            <div
+              style={{
+                position: 'relative',
+                zIndex: 1,
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 68, 68, 0.2)',
+                borderRadius: '10px',
+                padding: '20px',
+                marginBottom: '25px'
+              }}
+            >
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', 
+                gap: '15px',
+                color: '#fff',
+                fontSize: '12px'
+              }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ color: '#888', marginBottom: '3px' }}>Game</div>
+                  <div style={{ fontWeight: 'bold' }}>{selectedCancelOrder.game_type}</div>
+                </div>
+                
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ color: '#888', marginBottom: '3px' }}>Status</div>
+                  <div style={{ fontWeight: 'bold', color: ORDER_STATUSES[selectedCancelOrder.status].color }}>
+                    {ORDER_STATUSES[selectedCancelOrder.status].text}
+                  </div>
+                </div>
+                
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ color: '#888', marginBottom: '3px' }}>Amount</div>
+                  <div style={{ fontWeight: 'bold', color: '#00ff00' }}>
+                    {formatAmount(selectedCancelOrder.total_amount)} ETH
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Warning Message */}
+            <div
+              style={{
+                position: 'relative',
+                zIndex: 1,
+                background: selectedCancelOrder.status === 'posted' 
+                  ? 'rgba(0, 255, 0, 0.1)' 
+                  : 'rgba(255, 68, 68, 0.1)',
+                border: selectedCancelOrder.status === 'posted' 
+                  ? '1px solid rgba(0, 255, 0, 0.3)' 
+                  : '1px solid rgba(255, 68, 68, 0.3)',
+                borderRadius: '10px',
+                padding: '20px',
+                marginBottom: '25px'
+              }}
+            >
+              <div
+                style={{
+                  fontSize: '18px',
+                  fontWeight: 'bold',
+                  color: selectedCancelOrder.status === 'posted' ? '#00ff00' : '#ff4444',
+                  marginBottom: '10px'
+                }}
+              >
+                {selectedCancelOrder.status === 'posted' ? '✓ Deposit Refund' : '⚠️ Penalty Warning'}
+              </div>
+              
+              <div
+                style={{
+                  color: '#fff',
+                  fontSize: '14px',
+                  lineHeight: '1.4'
+                }}
+              >
+                {selectedCancelOrder.status === 'posted' 
+                  ? "Your deposit will be refunded to your wallet. Are you sure you want to cancel this order?"
+                  : "Warning: Cancelling an accepted order will result in your deposit being forfeited as a penalty. This action cannot be undone. Are you sure you want to continue?"
+                }
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div
+              style={{
+                position: 'relative',
+                zIndex: 1,
+                display: 'flex',
+                gap: '15px',
+                justifyContent: 'center'
+              }}
+            >
+              <Button
+                onClick={() => setShowCancelModal(false)}
+                style={{
+                  background: 'transparent',
+                  color: '#888',
+                  border: '1px solid #888',
+                  borderRadius: '20px',
+                  padding: '8px 25px',
+                  fontWeight: 'bold'
+                }}
+              >
+                Keep Order
+              </Button>
+              
+              <Button
+                onClick={() => {
+                  setShowCancelModal(false);
+                  handleCancelOrder(selectedCancelOrder);
+                }}
+                disabled={cancelingOrder[selectedCancelOrder.id]}
+                style={{
+                  background: selectedCancelOrder.status === 'posted' 
+                    ? 'linear-gradient(45deg, #00ff00, #00cc00)' 
+                    : 'linear-gradient(45deg, #ff4444, #cc0000)',
+                  color: '#000',
+                  border: 'none',
+                  borderRadius: '20px',
+                  padding: '8px 25px',
+                  fontWeight: 'bold',
+                  opacity: cancelingOrder[selectedCancelOrder.id] ? 0.7 : 1
+                }}
+              >
+                {cancelingOrder[selectedCancelOrder.id] 
+                  ? 'Processing...' 
+                  : selectedCancelOrder.status === 'posted' 
+                    ? 'Yes, Cancel & Refund' 
+                    : 'Yes, Cancel (Forfeit Deposit)'
+                }
+              </Button>
+            </div>
+
+            {/* Decorative warning elements */}
+            <div
+              style={{
+                position: 'absolute',
+                top: '15px',
+                right: '15px',
+                width: '20px',
+                height: '20px',
+                border: '2px solid #ff4444',
+                borderRadius: '50%',
+                animation: 'twinkle 2s ease-in-out infinite'
+              }}
+            />
+            
+            <div
+              style={{
+                position: 'absolute',
+                bottom: '15px',
+                left: '15px',
+                width: '15px',
+                height: '15px',
+                background: '#ff4444',
                 borderRadius: '50%',
                 animation: 'twinkle 3s ease-in-out infinite',
                 opacity: 0.6
