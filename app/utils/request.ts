@@ -6,11 +6,11 @@ const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || '';
 const WHITE_LIST = ['checkWallet', 'login', 'register'];
 
 // Custom error class for API failures
-export class ApiError extends Error {
+export class ApiError<T = unknown> extends Error {
   public status: number;
-  public data: any;
+  public data: T;
 
-  constructor(message: string, status: number, data: any = null) {
+  constructor(message: string, status: number, data: T = null as any) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
@@ -20,7 +20,7 @@ export class ApiError extends Error {
 }
 
 interface RequestOptions extends RequestInit {
-  data?: Record<string, any> | FormData | Blob | ArrayBufferView | ArrayBuffer | string; 
+  data?: Record<string, unknown> | FormData | Blob | ArrayBufferView | ArrayBuffer | string;
   params?: Record<string, string | number>;
 }
 
@@ -79,7 +79,7 @@ export async function request<T>(url: string, options?: RequestOptions): Promise
       config.body = JSON.stringify(data);
     } else {
       // For FormData, Blob, string, etc., pass directly
-      config.body = data as any; // Cast to any to satisfy RequestInit['body'] type
+      config.body = data as BodyInit; // Cast to BodyInit for type safety
     }
   }
   
@@ -91,12 +91,12 @@ export async function request<T>(url: string, options?: RequestOptions): Promise
     const isJson = contentType && contentType.includes('application/json');
 
     if (response.status === 204) { // No Content
-      responseData = { code: response.status, message: 'No Content', data: null as any };
+      responseData = { code: response.status, message: 'No Content', data: null as T };
     } else if (isJson) {
       try {
         responseData = await response.json();
-      } catch (jsonError: any) {
-        const errorMessage = `Failed to parse JSON response from ${url}: ${jsonError.message}`;
+      } catch (jsonError: unknown) {
+        const errorMessage = `Failed to parse JSON response from ${url}: ${jsonError instanceof Error ? jsonError.message : String(jsonError)}`;
         // message.error(errorMessage);
         throw new ApiError(errorMessage, response.status, null);
       }
@@ -104,7 +104,7 @@ export async function request<T>(url: string, options?: RequestOptions): Promise
       const textResponse = await response.text().catch(() => '');
       const errorMessage = `Unexpected content type '${contentType}' from ${url}. Expected JSON. Response: ${textResponse.substring(0, 100)}...`;
       // message.error(errorMessage);
-      throw new ApiError(errorMessage, response.status, textResponse);
+      throw new ApiError(errorMessage, response.status, textResponse as unknown);
     }
 
     if (isLogicalSuccess(response.status)) {

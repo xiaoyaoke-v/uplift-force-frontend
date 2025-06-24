@@ -10,7 +10,7 @@ interface SidebarItem {
   href: string;
 }
 
-interface SidebarProps {
+type SidebarProps = {
   role?: "player" | "booster";
 }
 

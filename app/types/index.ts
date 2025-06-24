@@ -6,15 +6,14 @@ export interface IResponse<T> {
 
 export interface IUser {
     id: number
-    username:string
+    username: string
     avatar: string
     email: string
     wallet_address: `0x${string}`
     role: string
     status: number
-    is_verfied: number
+    is_verified: number
     created_at: string
-    [key: string]: any
 }
 
 /** 游戏卡片类型 */

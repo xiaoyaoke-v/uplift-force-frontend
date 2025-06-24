@@ -3,22 +3,26 @@ import { type IUser, type IOrder, type IResponse } from '@/types'
 
 
 interface IAddress {
-    wallet_address: `0x${string}`
+    wallet_address: `0x${string}`;
+    [key: string]: unknown;
 }
 
 interface ISignature extends IAddress {
-    message: string
-    signature: string
+    message: string;
+    signature: string;
+    [key: string]: unknown;
 }
 
 interface IRefreshParams {
-    refresh_token: string
+    refresh_token: string;
+    [key: string]: unknown;
 }
 
 interface IRegisterParams extends ISignature {
-    email: string
-    role: string
-    username: string
+    email: string;
+    role: string;
+    username: string;
+    [key: string]: unknown;
 } 
 
 interface IRegisterStatus {
@@ -60,6 +64,7 @@ interface ISubmitOrderParams {
     game: string;
     currentRank: string;
     desiredRank: string;
+    [key: string]: unknown;
 }
 
 interface IAcceptOrderParams {
@@ -106,13 +111,14 @@ interface ICreateOrderParam {
   game_account: string;
   game_mode: string;
   service_type: string;
-  current_rank: string; 
+  current_rank: string;
   target_rank: string;
   PUUID: string;
   requirements?: string;
   total_amount: string;
   deadline: string;
   tx_hash: string;
+  [key: string]: unknown;
 }
 
 interface IOrdersResponse {
@@ -133,11 +139,11 @@ interface IOrdersParams {
 }
 
 export const check = (data: IAddress): Promise<IRegisterStatus> => {
-    return post('/auth/checkWallet', {data})
+    return post('/auth/checkWallet', { data })
 }
 
 export const login = (data: ISignature): Promise<IUserInfo<IUser>> => {
-    return post('/auth/login', {data})
+    return post('/auth/login', { data })
 }
 
 export const logout = (): Promise<void> => {
@@ -145,11 +151,11 @@ export const logout = (): Promise<void> => {
 }
 
 export const refresh = (data: IRefreshParams): Promise<IRefreshResponseData> => {
-    return post('/auth/refresh', {data})
+    return post('/auth/refresh', { data })
 }
 
 export const register = (data: IRegisterParams): Promise<IRegisterResponseData> => {
-    return post('/auth/register', {data})
+    return post('/auth/register', { data })
 }
 
 export const verify = (): Promise<IVerifyResponseData> => {
