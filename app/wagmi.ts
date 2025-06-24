@@ -6,6 +6,7 @@ import {
   optimism,
   polygon,
   sepolia,
+  avalancheFuji, 
 } from 'wagmi/chains';
 import { type Config } from 'wagmi';
 
@@ -20,7 +21,10 @@ function createConfig() {
       optimism,
       arbitrum,
       base,
-      ...(process.env.NEXT_PUBLIC_ENABLE_TESTNETS === 'true' ? [sepolia] : []),
+      ...(process.env.NEXT_PUBLIC_ENABLE_TESTNETS === 'true' 
+        ? [sepolia, avalancheFuji] 
+        : []
+      ),
     ],
     ssr: false,
   });
