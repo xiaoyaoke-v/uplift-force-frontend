@@ -49,7 +49,7 @@ export default function Register() {
       } else if (registerResponse.user.role === 'booster') {
         router.push('/booster');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Registration failed:', error);
       // 注册失败消息由 request.ts 统一处理
     } finally {

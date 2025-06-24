@@ -117,7 +117,7 @@ export async function request<T>(url: string, options?: RequestOptions): Promise
       // message.error(errorMessage);
       throw new ApiError(errorMessage, response.status, responseData?.data);
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!(error instanceof ApiError)) {
       // const errorMessage = error.message || 'Network or unknown error occurred.';
       // message.error(errorMessage);

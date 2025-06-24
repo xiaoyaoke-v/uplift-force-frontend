@@ -1,12 +1,12 @@
 import React from 'react';
-import { Home, List, FilePlus2, LogOut } from "lucide-react";
+import { Home, List, FilePlus2, LogOut, type LucideProps } from "lucide-react";
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '../hooks/useAuth';
 import { useUser } from '@/contexts/UserContext'; // 添加这个import
 
 interface SidebarItem {
   label: string;
-  icon: React.ReactNode;
+  icon: React.ComponentType<LucideProps>;
   href: string;
 }
 
@@ -18,19 +18,19 @@ const sidebarConfig: Record<"player" | "booster", SidebarItem[]> = {
   player: [
     {
       label: "Create Order",
-      icon: <FilePlus2 className="w-5 h-5" />,
+      icon: FilePlus2,
       href: "/player",
     },
     {
       label: "Order List",
-      icon: <List className="w-5 h-5" />,
+      icon: List,
       href: "/orders",
     },
   ],
   booster: [
     {
       label: "Order List",
-      icon: <List className="w-5 h-5" />,
+      icon: List,
       href: "/booster",
      },
   ],
@@ -99,7 +99,7 @@ export default function Sidebar({ role = "player" }: SidebarProps) {
                      ? 'bg-blue-700 group-hover:bg-blue-800'
                      : 'bg-gray-800 group-hover:bg-gray-700'
                 }`}>
-                  {React.cloneElement(item.icon as React.ReactElement, {
+                  {React.createElement(item.icon, {
                     className: `w-4 h-4 transition-colors duration-200 ${
                       isActive
                          ? 'text-white'

@@ -27,7 +27,7 @@ export const useAuth = () => {
           } else {
             console.warn('后端登出失败，但继续前端清理');
           }
-        } catch (error) {
+        } catch (error: unknown) {
           console.error('调用后端登出API失败:', error);
           // 即使后端失败也继续前端清理
         }
@@ -49,7 +49,7 @@ export const useAuth = () => {
       // 4. 跳转到登录页面
       window.location.href = '';
       
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('登出过程出错:', error);
       
       // 即使出错也要确保清除本地状态

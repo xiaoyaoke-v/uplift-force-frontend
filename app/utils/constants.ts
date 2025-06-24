@@ -876,3 +876,116 @@ export const ABI = [
       "type": "receive"
     }
   ]
+
+// Order status mapping
+export const ORDER_STATUSES: Record<string, { color: string; text: string }> = {
+  posted: { color: "blue", text: "Posted" },
+  accepted: { color: "orange", text: "Accepted" },
+  confirmed: { color: "cyan", text: "Confirmed" },
+  in_progress: { color: "processing", text: "In Progress" },
+  completed: { color: "success", text: "Completed" },
+  cancelled: { color: "default", text: "Cancelled" },
+  failed: { color: "error", text: "Failed" },
+};
+
+// Game types mapping
+export const GAME_TYPES: Record<string, { shortName: string; color: string; icon: string }> = {
+  "League of Legends": {
+    shortName: "LoL",
+    color: "#C8AA6E",
+    icon: "🏆",
+  },
+  Valorant: {
+    shortName: "Val",
+    color: "#FF4654",
+    icon: "🎯",
+  },
+  "Honor of Kings": {
+    shortName: "HoK",
+    color: "#1E90FF",
+    icon: "👑",
+  },
+  "Genshin Impact": {
+    shortName: "GI",
+    color: "#4A90E2",
+    icon: "⚔️",
+  },
+  "World of Warcraft": {
+    shortName: "WoW",
+    color: "#F4C430",
+    icon: "🐉",
+  },
+  "Diablo IV": {
+    shortName: "D4",
+    color: "#8B0000",
+    icon: "🔥",
+  },
+};
+
+// Service type mapping
+export const SERVICE_TYPES: Record<string, string> = {
+  Boosting: "Boosting",
+  "PLAY WITH": "Play With",
+};
+
+// Game mode mapping
+export const GAME_MODES: Record<string, string> = {
+  RANKED_SOLO_5x5: "Solo Queue",
+  RANKED_FLEX_SR: "Flex Queue",
+};
+
+// Rank order for sorting and comparison
+export const RANK_ORDER = [
+  "IRON",
+  "BRONZE",
+  "SILVER",
+  "GOLD",
+  "PLATINUM",
+  "DIAMOND",
+  "MASTER",
+  "GRANDMASTER",
+  "CHALLENGER",
+];
+
+// Game server regions
+export const regionOptions = [
+  { label: "BR1", value: "BR1" },
+  { label: "EUN1", value: "EUN1" },
+  { label: "EUW1", value: "EUW1" },
+  { label: "JP1", value: "JP1" },
+  { label: "KR", value: "KR" },
+  { label: "LA1", value: "LA1" },
+  { label: "LA2", value: "LA2" },
+  { label: "ME1", value: "ME1" },
+  { label: "NA1", value: "NA1" },
+  { label: "OC1", value: "OC1" },
+  { label: "RU", value: "RU" },
+  { label: "SG2", value: "SG2" },
+  { label: "TR1", value: "TR1" },
+  { label: "TW2", value: "TW2" },
+  { label: "VN2", value: "VN2" },
+];
+
+// List of supported games
+export const games = [
+  { name: "League of Legends", imagePath: "/assets/lol.jpg" },
+  {
+    name: "Honor of Kings",
+    imagePath: "/assets/zympYphpKVhaHN1685523686230531.png",
+  },
+  {
+    name: "LoL Mobile",
+    imagePath: "/assets/lS2IgphpoLR7Nz1627293846210726.png",
+  },
+  {
+    name: "Genshin Impact",
+    imagePath: "/assets/U0lBQphpIpZJ4r1691047295230803.png",
+  },
+  {
+    name: "Naruto Online",
+    imagePath: "/assets/YRWCFphpsLACiz1609212217201229.jpg",
+  },
+  { name: "Valorant", imagePath: "/assets/w8eVLphpkcD8vY1688004090230629.jpg" },
+  { name: "Diablo Ⅳ", imagePath: "/assets/diablo.jpg" },
+  { name: "World of Warcraft", imagePath: "/assets/wow.jpg" },
+];

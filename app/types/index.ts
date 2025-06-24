@@ -24,12 +24,28 @@ export interface Game {
 }
 
 /** 玩家订单类型 */
-export interface Order {
-  id: string;
-  game: string;
-  currentRank: string;
-  desiredRank: string;
-  status: 'pending' | 'accepted' | 'completed' | 'cancelled';
-  playerId: string | undefined;
-  boosterId?: string;
+export interface IOrder {
+  id: number;
+  chain_order_id: string;
+  order_no: string;
+  player_id: number;
+  player_username: string;
+  booster_id?: number;
+  booster_username?: string;
+  game_type: string;
+  server_region: string;
+  game_account: string;
+  game_mode: string;
+  service_type: 'Boosting' | 'PLAY WITH';
+  current_rank: string;
+  target_rank: string;
+  total_amount: string;
+  deadline: string;
+  status: 'posted' | 'accepted' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'failed';
+  requirements?: string;
+  PUUID?: string;
+  tx_hash: string;
+  created_at: string;
+  updated_at: string;
+  my_role?: 'player' | 'booster'; // This field seems to be added client-side
 }

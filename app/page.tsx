@@ -28,7 +28,7 @@ export default function Home() {
           wallet_address: address!
         })
         setIsRegister(is_registered)
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('Error checking wallet:', error);
       }
     }
@@ -74,7 +74,7 @@ export default function Home() {
         router.push('/booster');
       }
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Login failed:", error);
     }
   };

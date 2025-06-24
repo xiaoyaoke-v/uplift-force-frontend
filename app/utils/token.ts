@@ -6,7 +6,7 @@ const getLocalStorageItem = (name: string): string => {
   if (typeof window === 'undefined') return '';
   try {
     return localStorage.getItem(name) || '';
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error accessing localStorage:', error);
     return '';
   }
@@ -16,7 +16,7 @@ const setLocalStorageItem = (name: string, value: string) => {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(name, value);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error setting localStorage:', error);
   }
 };
@@ -25,7 +25,7 @@ const removeLocalStorageItem = (name: string) => {
   if (typeof window === 'undefined') return;
   try {
     localStorage.removeItem(name);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error removing localStorage:', error);
   }
 };

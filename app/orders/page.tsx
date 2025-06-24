@@ -43,65 +43,14 @@ import {
   BaseError,
   ContractFunctionRevertedError,
 } from "viem";
+import { 
+  ORDER_STATUSES, 
+  GAME_TYPES, 
+  SERVICE_TYPES, 
+  GAME_MODES 
+} from "@/utils/constants";
 
 const { Option } = Select;
-
-// Order status mapping - English
-const ORDER_STATUSES = {
-  posted: { color: "blue", text: "Posted" },
-  accepted: { color: "orange", text: "Accepted" },
-  confirmed: { color: "cyan", text: "Confirmed" },
-  in_progress: { color: "processing", text: "In Progress" },
-  completed: { color: "success", text: "Completed" },
-  cancelled: { color: "default", text: "Cancelled" },
-  failed: { color: "error", text: "Failed" },
-};
-
-// Game types mapping
-const GAME_TYPES = {
-  "League of Legends": {
-    shortName: "LoL",
-    color: "#C8AA6E",
-    icon: "🏆",
-  },
-  Valorant: {
-    shortName: "Val",
-    color: "#FF4654",
-    icon: "🎯",
-  },
-  "Honor of Kings": {
-    shortName: "HoK",
-    color: "#1E90FF",
-    icon: "👑",
-  },
-  "Genshin Impact": {
-    shortName: "GI",
-    color: "#4A90E2",
-    icon: "⚔️",
-  },
-  "World of Warcraft": {
-    shortName: "WoW",
-    color: "#F4C430",
-    icon: "🐉",
-  },
-  "Diablo IV": {
-    shortName: "D4",
-    color: "#8B0000",
-    icon: "🔥",
-  },
-};
-
-// Service type mapping - English
-const SERVICE_TYPES = {
-  Boosting: "Boosting",
-  "PLAY WITH": "Play With",
-};
-
-// Game mode mapping - English
-const GAME_MODES = {
-  RANKED_SOLO_5x5: "Solo Queue",
-  RANKED_FLEX_SR: "Flex Queue",
-};
 
 export default function OrdersPage() {
   const { user } = useUser();
@@ -137,7 +86,7 @@ export default function OrdersPage() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const [showContactModal, setShowContactModal] = useState(false);
-  const [selectedContactOrder, setSelectedContactOrder] = useState(null);
+  const [selectedContactOrder, setSelectedContactOrder] = useState<IOrder | null>(null);
   const [cancelingOrder, setCancelingOrder] = useState<{
     [key: number]: boolean;
   }>({});
@@ -188,7 +137,7 @@ export default function OrdersPage() {
   };
 
   // Handle confirm order (pay final amount - 85%)
-  const handleConfirmOrder = async (order: any) => {
+  const handleConfirmOrder = async (order: IOrder) => {
     if (!publicClient || !walletClient || !address) {
       console.error("Wallet not connected or clients not initialized");
       setMessageText("Please connect your wallet first");
@@ -226,8 +175,7 @@ export default function OrdersPage() {
       const finalPaymentAmount = (totalAmountWei * 85n) / 100n;
 
       // 使用区块链订单ID
-      const blockchainOrderId =
-        order.blockchain_order_id || order.chain_order_id || order.id;
+      const blockchainOrderId = order.chain_order_id || order.id;
 
       console.log("Confirm order parameters:", {
         databaseOrderId: order.id,
@@ -319,22 +267,24 @@ export default function OrdersPage() {
               setShowSuccessModal(false);
             }, 3000);
           }, 1500);
-        } catch (backendError) {
-          console.error("Backend confirm order failed:", backendError);
-          setMessageText(
-            `Order confirmation failed: ${backendError.message || "Unknown error"}`
-          );
-          message.error(
-            `Order confirmation failed: ${backendError.message || "Unknown error"}`
-          );
+        } catch (backendError: unknown) {
+          let errorMessage = "An unknown error occurred";
+          if (backendError instanceof Error) {
+            errorMessage = backendError.message;
+          }
+          message.error(errorMessage);
+          setMessageText(errorMessage);
         }
       } else {
         setMessageText("Transaction failed. Please try again.");
         message.error("Transaction failed. Please try again.");
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error confirming order on chain:", error);
-      const errorMessage = `Error: ${error.message || "Failed to confirm order"}`;
+      let errorMessage = "Failed to confirm order";
+      if (error instanceof Error) {
+        errorMessage = `Error: ${error.message}`;
+      }
       setMessageText(errorMessage);
       message.error(errorMessage);
     } finally {
@@ -353,21 +303,16 @@ export default function OrdersPage() {
       if (statusFilter) params.status = statusFilter;
       if (gameTypeFilter) params.game_type = gameTypeFilter;
 
-      const data = await getMyOrders(params);
+      const response = await getMyOrders(params);
 
-      if (data) {
-        // 即使 orders 为 null 或空数组，也要更新状态
-        setMyOrders(data.orders || []);
-        setMyOrdersTotal(data.total || 0);
+      if (response && response.data) {
+        setMyOrders(response.data.orders || []);
+        setMyOrdersTotal(response.data.total || 0);
       } else {
-        // 如果整个 data 为空，清空状态
         setMyOrders([]);
         setMyOrdersTotal(0);
-        console.error("No data returned:", data);
-        message.error("No data returned from server");
       }
-    } catch (error) {
-      // 发生错误时也要清空状态
+    } catch (error: unknown) {
       setMyOrders([]);
       setMyOrdersTotal(0);
       console.error("Failed to fetch my orders:", error);
@@ -386,21 +331,16 @@ export default function OrdersPage() {
       if (statusFilter) params.status = statusFilter;
       if (gameTypeFilter) params.game_type = gameTypeFilter;
 
-      const data = await getAllOrders(params);
+      const response = await getAllOrders(params);
 
-      if (data) {
-        // 即使 orders 为 null 或空数组，也要更新状态
-        setAllOrders(data.orders || []);
-        setAllOrdersTotal(data.total || 0);
+      if (response && response.data) {
+        setAllOrders(response.data.orders || []);
+        setAllOrdersTotal(response.data.total || 0);
       } else {
-        // 如果整个 data 为空，清空状态
         setAllOrders([]);
         setAllOrdersTotal(0);
-        console.error("No data returned:", data);
-        message.error("No data returned from server");
       }
-    } catch (error) {
-      // 发生错误时也要清空状态
+    } catch (error: unknown) {
       setAllOrders([]);
       setAllOrdersTotal(0);
       console.error("Failed to fetch all orders:", error);
@@ -462,7 +402,7 @@ export default function OrdersPage() {
 
       // 使用区块链订单ID
       const blockchainOrderId =
-        order.blockchain_order_id || order.chain_order_id || order.id;
+        order.chain_order_id || order.id;
 
       console.log("Cancel order parameters:", {
         databaseOrderId: order.id,
@@ -547,22 +487,24 @@ export default function OrdersPage() {
           setTimeout(() => {
             setMessageText("");
           }, 2000);
-        } catch (backendError) {
-          console.error("Backend cancel order failed:", backendError);
-          setMessageText(
-            `Order cancellation failed: ${backendError.message || "Unknown error"}`
-          );
-          message.error(
-            `Order cancellation failed: ${backendError.message || "Unknown error"}`
-          );
+        } catch (backendError: unknown) {
+          let errorMessage = "An unknown error occurred";
+          if (backendError instanceof Error) {
+            errorMessage = backendError.message;
+          }
+          message.error(errorMessage);
+          setMessageText(errorMessage);
         }
       } else {
         setMessageText("Cancellation transaction failed. Please try again.");
         message.error("Cancellation transaction failed. Please try again.");
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error cancelling order on chain:", error);
-      const errorMessage = `Error: ${error.message || "Failed to cancel order"}`;
+      let errorMessage = "Failed to cancel order";
+      if (error instanceof Error) {
+        errorMessage = `Error: ${error.message}`;
+      }
       setMessageText(errorMessage);
       message.error(errorMessage);
     } finally {
@@ -570,19 +512,9 @@ export default function OrdersPage() {
     }
   };
 
-  const handleContact = (order: any) => {
+  const handleContact = (order: IOrder) => {
     setSelectedContactOrder(order);
     setShowContactModal(true);
-  };
-
-  const handleCopyEmail = async (email: any) => {
-    try {
-      await navigator.clipboard.writeText(email);
-      message.success("Email copied to clipboard!");
-    } catch (err) {
-      console.error("Failed to copy email:", err);
-      message.error("Failed to copy email");
-    }
   };
 
   // Reset filters
@@ -1221,8 +1153,7 @@ export default function OrdersPage() {
             text-shadow:
               0 0 10px #00ff00,
               0 0 20px #00ff00,
-              0 0 30px #00ff00,
-              0 0 40px #00ff00;
+              0 0 30px #00ff00;
           }
           100% {
             text-shadow:
@@ -1757,12 +1688,14 @@ export default function OrdersPage() {
                 transition: "all 0.3s ease",
               }}
               onMouseEnter={(e) => {
-                e.target.style.background = "#00ffff";
-                e.target.style.color = "#000";
+                const target = e.target as HTMLElement;
+                target.style.background = "#00ffff";
+                target.style.color = "#000";
               }}
               onMouseLeave={(e) => {
-                e.target.style.background = "transparent";
-                e.target.style.color = "#00ffff";
+                const target = e.target as HTMLElement;
+                target.style.background = "transparent";
+                target.style.color = "#00ffff";
               }}
             >
               Close
@@ -1978,31 +1911,9 @@ export default function OrdersPage() {
                   }}
                 >
                   {user?.role === "player"
-                    ? selectedContactOrder.booster_email
-                    : selectedContactOrder.player_email}
+                    ? selectedContactOrder.booster_username
+                    : selectedContactOrder.player_username}
                 </div>
-
-                <Button
-                  size="small"
-                  icon={<CopyOutlined />}
-                  onClick={() =>
-                    handleCopyEmail(
-                      user?.role === "player"
-                        ? selectedContactOrder.booster_email
-                        : selectedContactOrder.player_email
-                    )
-                  }
-                  style={{
-                    background: "linear-gradient(45deg, #00ffff, #ff00ff)",
-                    color: "#000",
-                    border: "none",
-                    borderRadius: "6px",
-                    fontWeight: "bold",
-                    minWidth: "80px",
-                  }}
-                >
-                  Copy
-                </Button>
               </div>
             </div>
 

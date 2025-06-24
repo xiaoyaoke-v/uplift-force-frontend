@@ -62,7 +62,7 @@ const ORDER_STATUSES = {
 };
 
 // Game types mapping
-const GAME_TYPES = {
+const GAME_TYPES: Record<string, { shortName: string; color: string; icon: string }> = {
   "League of Legends": {
     shortName: "LoL",
     color: "#C8AA6E",
@@ -96,19 +96,19 @@ const GAME_TYPES = {
 };
 
 // Service type mapping - English
-const SERVICE_TYPES = {
+const SERVICE_TYPES: Record<string, string> = {
   Boosting: "Boosting",
   "PLAY WITH": "Play With",
 };
 
 // Game mode mapping - English
-const GAME_MODES = {
+const GAME_MODES: Record<string, string> = {
   RANKED_SOLO_5x5: "Solo Queue",
   RANKED_FLEX_SR: "Flex Queue",
 };
 
 export default function OrdersPage() {
-  const { user, isLoading, isAuthenticated } = useUser();
+  const { user } = useUser();
   const router = useRouter();
 
   // State management
@@ -145,7 +145,7 @@ export default function OrdersPage() {
   const [cancelModalVisible, setCancelModalVisible] = useState(false);
   const [orderToCancel, setOrderToCancel] = useState<IOrder | null>(null);
   const [showContactModal, setShowContactModal] = useState(false);
-  const [selectedContactOrder, setSelectedContactOrder] = useState(null);
+  const [selectedContactOrder, setSelectedContactOrder] = useState<IOrder | null>(null);
   const { isConnected, address } = useAccount();
 
   // 添加 Avalanche Fuji 链定义
@@ -174,12 +174,11 @@ export default function OrdersPage() {
     },
   };
 
-  const chainMap = {
-    1: mainnet, // 以太坊主网
-    11155111: sepolia, // Sepolia 测试网
-    31337: hardhat, // Hardhat 本地网络
-    42161: arbitrum, // Arbitrum One
-    43113: avalancheFuji, // Avalanche Fuji 测试网
+  const chainMap: Record<number, any> = {
+    1: mainnet,
+    11155111: sepolia,
+    31337: hardhat,
+    42161: arbitrum,
   };
 
   useEffect(() => {
@@ -237,23 +236,19 @@ export default function OrdersPage() {
 
       const data = await getMyOrders(params);
 
-      if (data) {
-        // 即使 orders 为 null 或空数组，也要更新状态
-        setMyOrders(data.orders || []);
-        setMyOrdersTotal(data.total || 0);
+      if (data && data.data) {
+        setMyOrders(data.data.orders || []);
+        setMyOrdersTotal(data.data.total || 0);
       } else {
-        // 如果整个 data 为空，清空状态
         setMyOrders([]);
         setMyOrdersTotal(0);
-        console.error("No data returned:", data);
-        message.error("No data returned from server");
       }
     } catch (error) {
-      // 发生错误时也要清空状态
-      setMyOrders([]);
-      setMyOrdersTotal(0);
-      console.error("Failed to fetch my orders:", error);
-      message.error("Failed to fetch my orders");
+      let errorMessage = "操作失败";
+      if (error instanceof Error) {
+        errorMessage = `Error: ${error.message}`;
+      }
+      message.error(errorMessage);
     }
   };
 
@@ -297,23 +292,19 @@ export default function OrdersPage() {
 
       const data = await getAllOrders(params);
 
-      if (data) {
-        // 即使 orders 为 null 或空数组，也要更新状态
-        setAllOrders(data.orders || []);
-        setAllOrdersTotal(data.total || 0);
+      if (data && data.data) {
+        setAllOrders(data.data.orders || []);
+        setAllOrdersTotal(data.data.total || 0);
       } else {
-        // 如果整个 data 为空，清空状态
         setAllOrders([]);
         setAllOrdersTotal(0);
-        console.error("No data returned:", data);
-        message.error("No data returned from server");
       }
     } catch (error) {
-      // 发生错误时也要清空状态
-      setAllOrders([]);
-      setAllOrdersTotal(0);
-      console.error("Failed to fetch all orders:", error);
-      message.error("Failed to fetch all orders");
+      let errorMessage = "操作失败";
+      if (error instanceof Error) {
+        errorMessage = `Error: ${error.message}`;
+      }
+      message.error(errorMessage);
     }
   };
 
@@ -436,7 +427,7 @@ export default function OrdersPage() {
 
       const blockchainOrderId =
         orderToCancel.chain_order_id ||
-        orderToCancel.blockchain_order_id ||
+        orderToCancel.chain_order_id ||
         orderToCancel.id;
 
       setMessageText("Simulating cancellation transaction...");
@@ -510,13 +501,8 @@ export default function OrdersPage() {
             setMessageText("");
           }, 3000);
         } catch (backendError) {
-          console.error("Backend cancel order failed:", backendError);
-          setMessageText(
-            `Order cancellation failed: ${backendError.message || "Unknown error"}`
-          );
-          message.error(
-            `Order cancellation failed: ${backendError.message || "Unknown error"}`
-          );
+          const messageText = backendError instanceof Error ? backendError.message : 'Unknown error';
+          message.error(messageText);
         } finally {
           setCancellingOrder((prev) => ({ ...prev, [orderId]: false }));
         }
@@ -527,7 +513,10 @@ export default function OrdersPage() {
       }
     } catch (error) {
       console.error("Error cancelling order on chain:", error);
-      const errorMessage = `Error: ${error.message || "Failed to cancel order"}`;
+      let errorMessage = "操作失败";
+      if (error instanceof Error) {
+        errorMessage = `Error: ${error.message}`;
+      }
       setMessageText(errorMessage);
       message.error(errorMessage);
       setCancellingOrder((prev) => ({ ...prev, [orderId]: false }));
@@ -602,16 +591,8 @@ export default function OrdersPage() {
                     }, 3000);
                   }, 1500);
                 } catch (backendError) {
-                  console.error(
-                    "Failed to update backend order status:",
-                    backendError
-                  );
-                  message.error(
-                    "Order completed on blockchain but failed to update backend status"
-                  );
-                  setMessageText(
-                    "Order completed on blockchain but failed to update backend status"
-                  );
+                  const messageText = backendError instanceof Error ? backendError.message : 'Unknown error';
+                  message.error(messageText);
                 } finally {
                   // 🔥 确保在完成后重置按钮状态
                   setCompletingOrder((prev) => ({ ...prev, [orderId]: false }));
@@ -652,16 +633,8 @@ export default function OrdersPage() {
                     "failed"
                   );
                 } catch (backendError) {
-                  console.error(
-                    "Failed to update backend order failure status:",
-                    backendError
-                  );
-                  message.error(
-                    "Order failed on blockchain but failed to update backend status"
-                  );
-                  setMessageText(
-                    "Order failed on blockchain but failed to update backend status"
-                  );
+                  const messageText = backendError instanceof Error ? backendError.message : 'Unknown error';
+                  message.error(messageText);
                 } finally {
                   // 🔥 确保在失败后重置按钮状态
                   setCompletingOrder((prev) => ({ ...prev, [orderId]: false }));
@@ -733,7 +706,7 @@ export default function OrdersPage() {
       }
 
       const blockchainOrderId =
-        order.chain_order_id || order.blockchain_order_id || order.id;
+        order.chain_order_id || order.chain_order_id || order.id;
       const puuid = order.PUUID || "";
       const region = order.server_region || "";
       const target = order.target_rank || "";
@@ -810,7 +783,10 @@ export default function OrdersPage() {
       }
     } catch (error) {
       console.error("Error completing order on chain:", error);
-      const errorMessage = `Error: ${error.message || "Failed to complete order"}`;
+      let errorMessage = "Failed to complete order";
+      if (error instanceof Error) {
+        errorMessage = `Error: ${error.message}`;
+      }
       setMessageText(errorMessage);
       message.error(errorMessage);
       // 🔥 出错时重置按钮状态
@@ -857,7 +833,7 @@ export default function OrdersPage() {
 
       // 使用区块链订单ID
       const blockchainOrderId =
-        order.blockchain_order_id || order.chain_order_id || order.id;
+        order.chain_order_id || order.chain_order_id || order.id;
 
       console.log("Accept order parameters:", {
         databaseOrderId: order.id,
@@ -951,21 +927,19 @@ export default function OrdersPage() {
             }, 3000);
           }, 1500);
         } catch (backendError) {
-          console.error("Backend accept order failed:", backendError);
-          setMessageText(
-            `Order acceptance failed: ${backendError.message || "Unknown error"}`
-          );
-          message.error(
-            `Order acceptance failed: ${backendError.message || "Unknown error"}`
-          );
+          const messageText = backendError instanceof Error ? backendError.message : 'Unknown error';
+          message.error(messageText);
         }
       } else {
         setMessageText("Transaction failed. Please try again.");
         message.error("Transaction failed. Please try again.");
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error accepting order on chain:", error);
-      const errorMessage = `Error: ${error.message || "Failed to accept order"}`;
+      let errorMessage = "Error: Failed to accept order";
+      if (error instanceof Error) {
+        errorMessage = `Error: ${error.message || "Failed to accept order"}`;
+      }
       setMessageText(errorMessage);
       message.error(errorMessage);
     } finally {
@@ -977,16 +951,6 @@ export default function OrdersPage() {
   const handleContact = (order: any) => {
     setSelectedContactOrder(order);
     setShowContactModal(true);
-  };
-
-  const handleCopyEmail = async (email: any) => {
-    try {
-      await navigator.clipboard.writeText(email);
-      message.success("Email copied to clipboard!");
-    } catch (err) {
-      console.error("Failed to copy email:", err);
-      message.error("Failed to copy email");
-    }
   };
 
   // Render order card
@@ -1038,7 +1002,7 @@ export default function OrdersPage() {
               <div
                 style={{ color: "#fff", fontWeight: "bold", fontSize: "16px" }}
               >
-                #{order.order_no}
+                #{order.order_no ? order.order_no : "-"}
               </div>
               <div style={{ color: "#00ffff", fontSize: "12px" }}>
                 {order.game_type} · {GAME_MODES[order.game_mode]}
@@ -2387,7 +2351,7 @@ export default function OrdersPage() {
                   opacity: 0.8,
                 }}
               >
-                Order #{selectedContactOrder.order_no}
+                Order #{selectedContactOrder?.order_no ? selectedContactOrder.order_no : "-"}
               </div>
             </div>
 
@@ -2420,12 +2384,12 @@ export default function OrdersPage() {
                       marginBottom: "5px",
                     }}
                   >
-                    {selectedContactOrder.my_role === "player"
+                    {selectedContactOrder?.my_role === "player"
                       ? "Booster"
                       : "Client"}
                   </div>
                   <div style={{ fontWeight: "bold" }}>
-                    {selectedContactOrder.my_role === "player"
+                    {selectedContactOrder?.my_role === "player"
                       ? selectedContactOrder.booster_username
                       : selectedContactOrder.player_username}
                   </div>
@@ -2443,7 +2407,7 @@ export default function OrdersPage() {
                     Service Type
                   </div>
                   <div style={{ fontWeight: "bold" }}>
-                    {SERVICE_TYPES[selectedContactOrder.service_type]}
+                    {SERVICE_TYPES[selectedContactOrder?.service_type || ""]}
                   </div>
                 </div>
               </div>
@@ -2492,9 +2456,9 @@ export default function OrdersPage() {
                     wordBreak: "break-all",
                   }}
                 >
-                  {selectedContactOrder.my_role === "player"
-                    ? selectedContactOrder.booster_email
-                    : selectedContactOrder.player_email}
+                  {selectedContactOrder?.my_role === "player"
+                    ? selectedContactOrder.booster_username
+                    : selectedContactOrder.player_username}
                 </div>
 
                 <Button
@@ -2502,9 +2466,9 @@ export default function OrdersPage() {
                   icon={<CopyOutlined />}
                   onClick={() =>
                     handleCopyEmail(
-                      selectedContactOrder.my_role === "player"
-                        ? selectedContactOrder.booster_email
-                        : selectedContactOrder.player_email
+                      selectedContactOrder?.my_role === "player"
+                        ? selectedContactOrder.booster_username
+                        : selectedContactOrder.player_username
                     )
                   }
                   style={{
@@ -2545,11 +2509,11 @@ export default function OrdersPage() {
                 <div style={{ textAlign: "center" }}>
                   <div style={{ color: "#888", marginBottom: "3px" }}>Game</div>
                   <div style={{ fontWeight: "bold" }}>
-                    {selectedContactOrder.game_type}
+                    {selectedContactOrder?.game_type}
                   </div>
                 </div>
 
-                {selectedContactOrder.current_rank && (
+                {selectedContactOrder?.current_rank && (
                   <div style={{ textAlign: "center" }}>
                     <div style={{ color: "#888", marginBottom: "3px" }}>
                       From
@@ -2560,7 +2524,7 @@ export default function OrdersPage() {
                   </div>
                 )}
 
-                {selectedContactOrder.target_rank && (
+                {selectedContactOrder?.target_rank && (
                   <div style={{ textAlign: "center" }}>
                     <div style={{ color: "#888", marginBottom: "3px" }}>To</div>
                     <div style={{ fontWeight: "bold" }}>
@@ -2574,7 +2538,7 @@ export default function OrdersPage() {
                     Amount
                   </div>
                   <div style={{ fontWeight: "bold", color: "#00ff00" }}>
-                    {formatAmount(selectedContactOrder.total_amount)} AVAX
+                    {formatAmount(selectedContactOrder?.total_amount || "")} AVAX
                   </div>
                 </div>
               </div>
@@ -2650,3 +2614,9 @@ export default function OrdersPage() {
     </div>
   );
 }
+
+const handleCopyEmail = (text?: string) => {
+  if (!text) return;
+  navigator.clipboard.writeText(text);
+  message.success("已复制");
+};

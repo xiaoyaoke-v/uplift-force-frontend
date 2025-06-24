@@ -30,11 +30,16 @@ import {
   getPlayerInfo,
   createOrder,
   ICreateOrderParam,
+  type IOrder,
 } from "@/apis";
 import type { IPlayerInfo, IPlayerAccount } from "@/apis";
 import GameCard from "@/components/ui/GameCard";
 import PromoCard from "@/components/ui/PromoCard";
-import type { Game } from "@/types";
+import {
+  games,
+  regionOptions,
+  RANK_ORDER,
+} from "@/utils/constants";
 import {
   parseEther,
   parseAbi,
@@ -44,7 +49,7 @@ import {
   ContractFunctionExecutionError,
 } from "viem";
 import { useAccount, useSignMessage } from "wagmi";
-import { mainnet, sepolia, hardhat, arbitrum } from "viem/chains";
+import { mainnet, sepolia, hardhat, arbitrum, type Chain } from "viem/chains";
 
 const { Option } = Select;
 
@@ -56,59 +61,6 @@ interface Order {
   status: "pending" | "accepted" | "completed" | "cancelled";
   boosterId?: string;
 }
-
-const games: Game[] = [
-  { name: "League of Legends", imagePath: "/assets/lol.jpg" },
-  {
-    name: "Honor of Kings",
-    imagePath: "/assets/zympYphpKVhaHN1685523686230531.png",
-  },
-  {
-    name: "LoL Mobile",
-    imagePath: "/assets/lS2IgphpoLR7Nz1627293846210726.png",
-  },
-  {
-    name: "Genshin Impact",
-    imagePath: "/assets/U0lBQphpIpZJ4r1691047295230803.png",
-  },
-  {
-    name: "Naruto Online",
-    imagePath: "/assets/YRWCFphpsLACiz1609212217201229.jpg",
-  },
-  { name: "Valorant", imagePath: "/assets/w8eVLphpkcD8vY1688004090230629.jpg" },
-  { name: "Diablo Ⅳ", imagePath: "/assets/diablo.jpg" },
-  { name: "World of Warcraft", imagePath: "/assets/wow.jpg" },
-];
-
-const regionOptions = [
-  { label: "BR1", value: "BR1" },
-  { label: "EUN1", value: "EUN1" },
-  { label: "EUW1", value: "EUW1" },
-  { label: "JP1", value: "JP1" },
-  { label: "KR", value: "KR" },
-  { label: "LA1", value: "LA1" },
-  { label: "LA2", value: "LA2" },
-  { label: "ME1", value: "ME1" },
-  { label: "NA1", value: "NA1" },
-  { label: "OC1", value: "OC1" },
-  { label: "RU", value: "RU" },
-  { label: "SG2", value: "SG2" },
-  { label: "TR1", value: "TR1" },
-  { label: "TW2", value: "TW2" },
-  { label: "VN2", value: "VN2" },
-];
-
-const RANK_ORDER = [
-  "IRON",
-  "BRONZE",
-  "SILVER",
-  "GOLD",
-  "PLATINUM",
-  "DIAMOND",
-  "MASTER",
-  "GRANDMASTER",
-  "CHALLENGER",
-];
 
 // 添加 Avalanche Fuji 链定义
 const avalancheFuji = {
@@ -136,7 +88,7 @@ const avalancheFuji = {
   },
 };
 
-const chainMap = {
+const chainMap: Record<number, Chain> = {
   1: mainnet, // 以太坊主网
   11155111: sepolia, // Sepolia 测试网
   31337: hardhat, // Hardhat 本地网络
@@ -148,7 +100,7 @@ export default function PlayerDashboard() {
   const { user } = useUser();
   const router = useRouter();
   const [form] = Form.useForm();
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<IOrder[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { isConnected, address } = useAccount();
@@ -221,7 +173,7 @@ export default function PlayerDashboard() {
         }
 
         return chain;
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("获取链ID失败:", error);
         return sepolia; // 默认链
       }
@@ -230,11 +182,12 @@ export default function PlayerDashboard() {
   };
 
   const fetchOrders = async () => {
+    if (!user) return;
     setLoadingOrders(true);
     try {
-      const fetchedOrders = await getPlayerOrders(user!.id);
+      const fetchedOrders = await getPlayerOrders(user.id);
       setOrders(fetchedOrders);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to fetch orders:", error);
     } finally {
       setLoadingOrders(false);
@@ -263,8 +216,8 @@ export default function PlayerDashboard() {
       } else {
         setPlayerInfo(res);
       }
-    } catch (e) {
-      console.error("Search player failed:", e);
+    } catch (error: unknown) {
+      console.error("Search player failed:", error);
       setPlayerError("No player information found");
     } finally {
       setSearchLoading(false);
@@ -283,7 +236,7 @@ export default function PlayerDashboard() {
   };
 
   // 新增：将日期转换为Unix时间戳的函数
-  const getDeadlineTimestamp = (dateString: string) => {
+  const getDeadlineTimestamp = (dateString: string | null): number | null => {
     if (!dateString) return null;
     const date = new Date(dateString);
     date.setHours(23, 59, 59, 999); // 设置为当天的23:59:59
@@ -338,7 +291,7 @@ export default function PlayerDashboard() {
       try {
         contractAbi = parseAbi([contractAbiRaw]);
         console.log("Parsed ABI:", contractAbi);
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("Error parsing ABI:", error);
         setMessage("Invalid ABI JSON format");
         setPlacingOrder(false);
@@ -356,7 +309,12 @@ export default function PlayerDashboard() {
       const currentRank = getCurrentRank();
       const totalAmount = parseEther(price.toString()); // 将 AVAX 转换为 wei
       const partialAmount = (totalAmount * 15n) / 100n;
-      const deadline = getDeadlineTimestamp(selectedDate); // 使用用户选择的日期
+      const deadline = getDeadlineTimestamp(selectedDate);
+      if (deadline === null) {
+        setMessage("Please select a valid deadline date.");
+        setPlacingOrder(false);
+        return;
+      }
       const gameType = selectedGame;
       const gameMode = playerInfo.leagueEntries[selectedIdx].queueType;
       const requirements = extraInfo || "No additional requirements"; // 直接使用用户输入
@@ -472,18 +430,20 @@ export default function PlayerDashboard() {
               setShowSuccessModal(false);
             }, 3000);
           }, 1500);
-        } catch (backendError) {
+        } catch (backendError: unknown) {
           console.error("Backend order creation failed:", backendError);
+          const message = backendError instanceof Error ? backendError.message : "Unknown error";
           setMessage(
-            `Order record creation failed: ${backendError.message || "Unknown error"}`
+            `Order record creation failed: ${message}`
           );
         }
       } else {
         setMessage("Transaction failed. Please try again.");
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error creating order on chain:", error);
-      setMessage(`Error: ${error.message || "Failed to create order"}`);
+      const message = error instanceof Error ? error.message : "Failed to create order";
+      setMessage(`Error: ${message}`);
     } finally {
       setPlacingOrder(false);
     }
