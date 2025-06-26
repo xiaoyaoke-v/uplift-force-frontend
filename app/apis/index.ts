@@ -203,7 +203,7 @@ export const createOrder = (data: ICreateOrderParam): Promise<null> => {
 };
 
 
-export const getMyOrders = (params: IOrdersParams): Promise<IResponse<IOrdersResponse>> => {
+export const getMyOrders = (params: IOrdersParams): Promise<IOrdersResponse> => {
   const queryString = new URLSearchParams(
     Object.entries(params).reduce((acc, [key, value]) => {
       if (value !== undefined && value !== '') {
@@ -216,7 +216,7 @@ export const getMyOrders = (params: IOrdersParams): Promise<IResponse<IOrdersRes
   return get(`/orders/my${queryString ? `?${queryString}` : ''}`);
 }
 
-export const getAllOrders = (params: IOrdersParams): Promise<IResponse<IOrdersResponse>> => {
+export const getAllOrders = (params: IOrdersParams): Promise<IOrdersResponse> => {
   const queryString = new URLSearchParams(
     Object.entries(params).reduce((acc, [key, value]) => {
       if (value !== undefined && value !== '') {

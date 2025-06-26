@@ -305,9 +305,9 @@ export default function OrdersPage() {
 
       const response = await getMyOrders(params);
 
-      if (response && response.data) {
-        setMyOrders(response.data.orders || []);
-        setMyOrdersTotal(response.data.total || 0);
+      if (response && response.orders) {
+        setMyOrders(response.orders || []);
+        setMyOrdersTotal(response.total || 0);
       } else {
         setMyOrders([]);
         setMyOrdersTotal(0);
@@ -333,9 +333,9 @@ export default function OrdersPage() {
 
       const response = await getAllOrders(params);
 
-      if (response && response.data) {
-        setAllOrders(response.data.orders || []);
-        setAllOrdersTotal(response.data.total || 0);
+      if (response && response.orders) {
+        setAllOrders(response.orders || []);
+        setAllOrdersTotal(response.total || 0);
       } else {
         setAllOrders([]);
         setAllOrdersTotal(0);
