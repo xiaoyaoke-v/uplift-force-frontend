@@ -179,6 +179,7 @@ export default function OrdersPage() {
     11155111: sepolia,
     31337: hardhat,
     42161: arbitrum,
+    43113: avalancheFuji,
   };
 
   useEffect(() => {
